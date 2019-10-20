@@ -65,7 +65,7 @@ def train(depth=16, width=1):
     x_train, y_train, x_test, y_test = get_cifar_data()
 
     # compile model
-    opt = SGD(learning_rate=0.1, momentum=0.9, decay=0.0005)
+    opt = SGD(learning_rate=lr_schedule(0), momentum=0.9, decay=0.0005)
     # opt = Adam(learning_rate=lr_schedule(0))
 
     wrn_model.compile(loss='categorical_crossentropy',
