@@ -9,7 +9,10 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import random
+import time
+from torchsummary import summary
+import torchviz
 
 class BasicBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, dropRate=0.0):
@@ -100,9 +103,9 @@ class WideResNet(nn.Module):
 
 
 if __name__ == '__main__':
-    import random
-    import time
-    from torchsummary import summary
+    # config
+    depth = 16
+    wide = 1
 
     x = torch.FloatTensor(64, 3, 32, 32).uniform_(0, 1)
 
@@ -116,12 +119,16 @@ if __name__ == '__main__':
     #model = WideResNet(depth=34, num_classes=10, widen_factor=2, dropRate=0.0)
     #model = WideResNet(depth=40, num_classes=10, widen_factor=10, dropRate=0.0)
     #model = WideResNet(depth=40, num_classes=10, widen_factor=1, dropRate=0.0)
-    model = WideResNet(depth=40, num_classes=10, widen_factor=2, dropRate=0.0)
+    model = WideResNet(depth=depth, num_classes=10, widen_factor=wide, dropRate=0.0)
     ###model = WideResNet(depth=50, num_classes=10, widen_factor=2, dropRate=0.0)
 
-    t0 = time.time()
-    output, *act = model(x)
-    print("Time taken for forward pass: {} s".format(time.time() - t0))
-    print("\nOUTPUT SHPAE: ", output.shape)
+    out = model(x)
+    # print(model)
+    dot = torchviz.make_dot(out, params=dict(model.named_parameters()))
+    dot.render('tmp.gv', view=True)
+    # t0 = time.time()
+    # output, *act = model(x)
+    # print("Time taken for forward pass: {} s".format(time.time() - t0))
+    # print("\nOUTPUT SHPAE: ", output.shape)
 
-    summary(model, input_size=(3, 32, 32))
+    # summary(model, input_size=(3, 32, 32))
