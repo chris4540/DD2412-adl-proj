@@ -44,8 +44,8 @@ def lr_schedule(epoch):
 
 
 
-depth = 40
-width = 2
+depth = 16
+width = 1
 batch_size = 128
 epochs = 200
 seed = 42
