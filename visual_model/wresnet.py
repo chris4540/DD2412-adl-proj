@@ -111,21 +111,15 @@ if __name__ == '__main__':
 
     ### WideResNets
     # Notation: W-depth-widening_factor
-    #model = WideResNet(depth=16, num_classes=10, widen_factor=1, dropRate=0.0)
-    #model = WideResNet(depth=16, num_classes=10, widen_factor=2, dropRate=0.0)
-    #model = WideResNet(depth=16, num_classes=10, widen_factor=8, dropRate=0.0)
-    #model = WideResNet(depth=16, num_classes=10, widen_factor=10, dropRate=0.0)
-    #model = WideResNet(depth=22, num_classes=10, widen_factor=8, dropRate=0.0)
-    #model = WideResNet(depth=34, num_classes=10, widen_factor=2, dropRate=0.0)
-    #model = WideResNet(depth=40, num_classes=10, widen_factor=10, dropRate=0.0)
-    #model = WideResNet(depth=40, num_classes=10, widen_factor=1, dropRate=0.0)
     model = WideResNet(depth=depth, num_classes=10, widen_factor=wide, dropRate=0.0)
-    ###model = WideResNet(depth=50, num_classes=10, widen_factor=2, dropRate=0.0)
-
-    out = model(x)
+    print(model)
+    print('-----------------------------------')
+    print(summary(model, (3, 32, 32)))
+    # out = model(x)
     # print(model)
-    dot = torchviz.make_dot(out, params=dict(model.named_parameters()))
-    dot.render('tmp.gv', view=True)
+    # dot = torchviz.make_dot(out, params=dict(model.named_parameters()))
+    # fname = "author_impl-WRN-{}-{}".format(depth, wide)
+    # dot.render(fname)
     # t0 = time.time()
     # output, *act = model(x)
     # print("Time taken for forward pass: {} s".format(time.time() - t0))

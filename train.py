@@ -109,6 +109,5 @@ def train(depth=16, width=1):
     print('Test loss:', scores[0])
     print('Test accuracy:', scores[1])
 
-
 if __name__ == '__main__':
     train(int(sys.argv[1]), int(sys.argv[2]))
