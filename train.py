@@ -7,6 +7,10 @@ from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau
 from models import *
 
+IMG_HEIGHT = 32
+IMG_WIDTH = 32
+
+
 def set_seed(seed):
     # NumPy
     import numpy as np
@@ -14,8 +18,8 @@ def set_seed(seed):
     # Python
     import random
     random.seed(seed)
-#    from tensorflow import set_random_seed
-#    set_random_seed(seed)
+    #from tensorflow import set_random_seed
+    #set_random_seed(seed)
 
 
 def get_cifar_data():
@@ -30,6 +34,7 @@ def get_cifar_data():
     y_test = utils.to_categorical(y_test)
     return x_train, y_train, x_test, y_test
 
+
 def lr_schedule(epoch):
     lr = 1e-1
     if epoch > 160:
@@ -42,99 +47,68 @@ def lr_schedule(epoch):
     return lr
 
 
+def train(depth=16, width=1):
+    
+    print(depth, width)
+    # depth = 40
+    # width = 2
+    # seed = 42
+    batch_size = 128
+    epochs = 200
+
+    model_type = 'WRN-%d-%d' % (depth, width)
+    shape, classes = (32, 32, 3), 10
+
+    # set_seed(seed)
+    wrn_model = build_model(shape, classes, depth, width)
+
+    x_train, y_train, x_test, y_test = get_cifar_data()
+
+    # compile model
+    opt = SGD(learning_rate=0.1, momentum=0.9, decay=0.0005)
+    # opt = Adam(learning_rate=lr_schedule(0))
+
+    wrn_model.compile(loss='categorical_crossentropy',
+                      optimizer=opt,
+                      metrics=['accuracy'])
+
+    # Prepare model model saving directory.
+    save_dir = os.path.join(os.getcwd(), 'saved_models')
+    model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+    filepath = os.path.join(save_dir, model_name)
+
+    # Prepare callbacks for model saving and for learning rate adjustment.
+    checkpoint = ModelCheckpoint(filepath=filepath,
+                                 monitor='val_acc',
+                                 verbose=1,
+                                 save_best_only=True)
+
+    lr_scheduler = LearningRateScheduler(lr_schedule)
+
+    callbacks = [checkpoint, lr_scheduler]
+
+    datagen = ImageDataGenerator(
+            rotation_range=20,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            horizontal_flip=True,
+            vertical_flip=False,
+            rescale=None
+            )
+
+    datagen.fit(x_train)
+
+    wrn_model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
+                            validation_data=(x_test, y_test),
+                            epochs=epochs, verbose=1,
+                            callbacks=callbacks)
+
+    scores = wrn_model.evaluate(x_test, y_test, verbose=1)
+    print('Test loss:', scores[0])
+    print('Test accuracy:', scores[1])
 
 
-depth = 40
-width = 2
-batch_size = 128
-epochs = 200
-seed = 42
-model_type = 'WRN-%d-%d' % (depth, width)
-shape, classes = (32, 32, 3), 10
-
-set_seed(seed)
-wrn_model = build_model(shape, classes, depth, width)
-
-x_train, y_train, x_test, y_test = get_cifar_data()
-
-# opt
-opt = SGD(learning_rate=lr_schedule(0), momentum=0.9)
-# opt = Adam(learning_rate=lr_schedule(0))
-
-# compile model
-wrn_model.compile(loss='categorical_crossentropy',
-                  optimizer=opt,
-                  metrics=['accuracy'])
-
-# Prepare model model saving directory.
-save_dir = os.path.join(os.getcwd(), 'saved_models')
-model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
-if not os.path.isdir(save_dir):
-    os.makedirs(save_dir)
-filepath = os.path.join(save_dir, model_name)
-
-
-# Prepare callbacks for model saving and for learning rate adjustment.
-checkpoint = ModelCheckpoint(filepath=filepath,
-                             monitor='val_acc',
-                             verbose=1,
-                             save_best_only=True)
-
-lr_scheduler = LearningRateScheduler(lr_schedule)
-
-callbacks = [checkpoint, lr_scheduler]
-
-datagen = ImageDataGenerator(
-        # set input mean to 0 over the dataset
-        featurewise_center=False,
-        # set each sample mean to 0
-        samplewise_center=False,
-        # divide inputs by std of dataset
-        featurewise_std_normalization=False,
-        # divide each input by its std
-        samplewise_std_normalization=False,
-        # apply ZCA whitening
-        zca_whitening=False,
-        # epsilon for ZCA whitening
-        zca_epsilon=1e-06,
-        # randomly rotate images in the range (deg 0 to 180)
-        rotation_range=0,
-        # randomly shift images horizontally
-        width_shift_range=0.1,
-        # randomly shift images vertically
-        height_shift_range=0.1,
-        # set range for random shear
-        shear_range=0.,
-        # set range for random zoom
-        zoom_range=0.,
-        # set range for random channel shifts
-        channel_shift_range=0.,
-        # set mode for filling points outside the input boundaries
-        fill_mode='nearest',
-        # value used for fill_mode = "constant"
-        cval=0.,
-        # randomly flip images
-        horizontal_flip=True,
-        # randomly flip images
-        vertical_flip=False,
-        # set rescaling factor (applied before any other transformation)
-        rescale=None,
-        # set function that will be applied on each input
-        preprocessing_function=None,
-        # image data format, either "channels_first" or "channels_last"
-        data_format=None,
-        # fraction of images reserved for validation (strictly between 0 and 1)
-        validation_split=0.0)
-
-# Compute quantities required for featurewise normalization
-# (std, mean, and principal components if ZCA whitening is applied).
-datagen.fit(x_train)
-
-wrn_model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
-                        validation_data=(x_test, y_test),
-                        epochs=epochs, verbose=1,
-                        callbacks=callbacks)
-
-scores = wrn_model.evaluate(x_test, y_test, verbose=1)
-print('Test loss:', scores[0])
-print('Test accuracy:', scores[1])
+if __name__ == '__main__':
+    train(int(sys.argv[1]), int(sys.argv[2]))
