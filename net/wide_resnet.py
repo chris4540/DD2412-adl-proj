@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 """Wide Residual Network models for Keras.
 
-# Reference
+Reference:
+    - [Wide Residual Networks](https://arxiv.org/abs/1605.07146)
+    - https://towardsdatascience.com/review-wrns-wide-residual-networks-image-classification-d3feb3fb2004
 
-- [Wide Residual Networks](https://arxiv.org/abs/1605.07146)
-
+Notes:
+    TODO:
+    1. Used Pre-Activation ResNet
+        performing batch norm and ReLU before convolution
+        i.e. BN-ReLU-Conv
 """
 import tensorflow
 from tensorflow.keras.models import Model
@@ -20,8 +25,7 @@ from tensorflow.keras.layers import BatchNormalization
 import tensorflow.keras.backend as K
 
 def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
-                        include_top=True, weights=None,
-                        input_tensor=None, input_shape=None,
+                        input_shape=None,
                         classes=10, activation='softmax'):
     """Instantiate the Wide Residual Network architecture,
         optionally loading weights pre-trained
@@ -67,9 +71,11 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
 
     img_input = Input(shape=input_shape)
 
-    x = __create_wide_residual_network(classes, img_input, include_top, depth, width,
-                                       dropout_rate, activation)
-
+    x = __create_wide_residual_network(classes, img_input,
+            depth=depth,
+            width=width,
+            dropout=dropout_rate,
+            activation=activation)
     #
     inputs = img_input
     # Create model.
@@ -93,14 +99,12 @@ def __conv2_block(input, k=1, dropout=0.0):
 
     channel_axis = -1
 
-    # Check if input number of filters is same as 16 * k, else create
-    # convolution2d for this input
-    if K.image_data_format() == 'channels_first':
-        if init.shape[1] != 16 * k:
-            init = Conv2D(16 * k, (1, 1), activation='linear', padding='same')(init)
-    else:
-        if init.shape[-1] != 16 * k:
-            init = Conv2D(16 * k, (1, 1), activation='linear', padding='same')(init)
+
+    # Check if input number of filters is same as 16 * k, else
+    # create convolution2d for this input as downsampling
+    # It will be in the case if this is the first block in the block group.
+    if init.shape[-1] != 16 * k:
+        init = Conv2D(16 * k, (1, 1), activation='linear', padding='same')(init)
 
     x = Conv2D(16 * k, (3, 3), padding='same')(input)
     x = BatchNormalization(axis=channel_axis)(x)
@@ -123,13 +127,10 @@ def __conv3_block(input, k=1, dropout=0.0):
     channel_axis = -1
 
     # Check if input number of filters is same as 32 * k, else
-    # create convolution2d for this input
-    if K.image_data_format() == 'channels_first':
-        if init.shape[1] != 32 * k:
-            init = Conv2D(32 * k, (1, 1), activation='linear', padding='same')(init)
-    else:
-        if init.shape[-1] != 32 * k:
-            init = Conv2D(32 * k, (1, 1), activation='linear', padding='same')(init)
+    # create convolution2d for this input as downsampling
+    # It will be in the case if this is the first block in the block group.
+    if init.shape[-1] != 32 * k:
+        init = Conv2D(32 * k, (1, 1), activation='linear', padding='same')(init)
 
     x = Conv2D(32 * k, (3, 3), padding='same')(input)
     x = BatchNormalization(axis=channel_axis)(x)
@@ -152,8 +153,8 @@ def ___conv4_block(input, k=1, dropout=0.0):
     channel_axis = -1
 
     # Check if input number of filters is same as 64 * k, else
-    # create convolution2d for this input
-
+    # create convolution2d for this input as downsampling
+    # It will be in the case if this is the first block in the block group.
     if init.shape[-1] != 64 * k:
         init = Conv2D(64 * k, (1, 1), activation='linear', padding='same')(init)
 
@@ -172,14 +173,13 @@ def ___conv4_block(input, k=1, dropout=0.0):
     return m
 
 
-def __create_wide_residual_network(nb_classes, img_input, include_top, depth=28,
+def __create_wide_residual_network(nb_classes, img_input, depth=28,
                                    width=8, dropout=0.0, activation='softmax'):
     ''' Creates a Wide Residual Network with specified parameters
 
     Args:
         nb_classes: Number of output classes
         img_input: Input tensor or layer
-        include_top: Flag to include the last dense layer
         depth: Depth of the network. Compute N = (n - 4) / 6.
                For a depth of 16, n = 16, N = (16 - 4) / 6 = 2
                For a depth of 28, n = 28, N = (28 - 4) / 6 = 4
@@ -187,7 +187,11 @@ def __create_wide_residual_network(nb_classes, img_input, include_top, depth=28,
         width: Width of the network.
         dropout: Adds dropout if value is greater than 0.0
 
-    Returns:a Keras Model
+    Returns:
+        a Keras Model
+
+    Notes:
+        N is a number of blocks in group
     '''
 
     N = (depth - 4) // 6
@@ -195,28 +199,33 @@ def __create_wide_residual_network(nb_classes, img_input, include_top, depth=28,
     x = __conv1_block(img_input)
     nb_conv = 4
 
+    # Block Group 2
     for _ in range(N):
         x = __conv2_block(x, width, dropout)
         nb_conv += 2
 
-    x = MaxPooling2D((2, 2))(x)
+    # x = MaxPooling2D((2, 2))(x)
 
+    # Block Group 3
     for _ in range(N):
         x = __conv3_block(x, width, dropout)
         nb_conv += 2
 
-    x = MaxPooling2D((2, 2))(x)
+    # x = MaxPooling2D((2, 2))(x)
 
+    # Block Group 3
     for _ in range(N):
         x = ___conv4_block(x, width, dropout)
         nb_conv += 2
 
-    if include_top:
-        x = GlobalAveragePooling2D()(x)
-        x = Dense(nb_classes, activation=activation)(x)
+    # Avg pooling + classification
+
+    x = GlobalAveragePooling2D()(x)
+    # TODO
+    x = Dense(nb_classes, activation=activation)(x)
 
     return x
 
 if __name__ == "__main__":
-    model = WideResidualNetwork(16, 1, include_top=False, weights=None, input_shape=(32, 32, 3))
+    model = WideResidualNetwork(16, 1, input_shape=(32, 32, 3))
     model.summary()
