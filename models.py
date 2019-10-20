@@ -92,3 +92,11 @@ def get_model_outputs(model, input, mode):
     return get_outputs([input, mode])
 
 
+if __name__ == "__main__":
+    # CIFAR-10 datasets, WRN-16-1
+    n = 16
+    k = 1
+    input_dim = (32, 32, 3)
+    output_dim = 10
+    model = build_model(input_dim, output_dim, n, k)
+    model.summary()
