@@ -104,7 +104,7 @@ def __conv2_block(input, k=1, dropout=0.0):
     # create convolution2d for this input to fit the output filter size
     # It will be in the case if this is the first block in the block group.
     if init.shape[-1] != 16 * k:
-        init = Conv2D(16 * k, (1, 1), activation='linear', padding='same')(init)
+        init = Conv2D(16 * k, (1, 1), padding='same')(init)
 
     # Pre-Activation
     x = BatchNormalization(axis=channel_axis)(input)
@@ -131,7 +131,7 @@ def __conv3_block(input, k=1, dropout=0.0):
     # create convolution2d for this input to fit the output filter size
     # It will be in the case if this is the first block in the block group.
     if init.shape[-1] != 32 * k:
-        init = Conv2D(32 * k, (1, 1), activation='linear', padding='same')(init)
+        init = Conv2D(32 * k, (1, 1), padding='same')(init)
 
     # Pre-Activation
     x = BatchNormalization(axis=channel_axis)(input)
@@ -158,7 +158,7 @@ def ___conv4_block(input, k=1, dropout=0.0):
     # create convolution2d for this input to fit the output filter size
     # It will be in the case if this is the first block in the block group.
     if init.shape[-1] != 64 * k:
-        init = Conv2D(64 * k, (1, 1), activation='linear', padding='same')(init)
+        init = Conv2D(64 * k, (1, 1), padding='same')(init)
 
     x = BatchNormalization(axis=channel_axis)(input)
     x = Activation('relu')(x)
@@ -236,10 +236,10 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     return x
 
 if __name__ == "__main__":
-    n = 16
-    k = 1
+    n = 10
+    k = 2
     model = WideResidualNetwork(n, k, input_shape=(32, 32, 3))
-    # model.summary()
-    from tensorflow.keras.utils import plot_model
-    plt_name = "WRN-{}-{}.pdf".format(n, k)
-    plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
+    model.summary()
+    # from tensorflow.keras.utils import plot_model
+    # plt_name = "WRN-{}-{}.pdf".format(n, k)
+    # plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
