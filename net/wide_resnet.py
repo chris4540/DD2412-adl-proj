@@ -21,6 +21,7 @@ from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import Add
 from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import Softmax
 import tensorflow.keras.backend as K
 
 def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
@@ -228,9 +229,9 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     # Avg pooling + classification
     x = GlobalAveragePooling2D()(x)
     # TODO
-    x = Dense(nb_classes, activation=activation)(x)
-    # x = Dense(nb_classes)(x)
-    # x = Soft
+    # x = Dense(nb_classes, activation=activation)(x)
+    x = Dense(nb_classes)(x)
+    x = Softmax(axis=-1)(x)
 
     return x
 
