@@ -7,6 +7,7 @@ Reference:
 https://github.com/EricAlcaide/keras-wrn/blob/master/keras_wrn/wrn.py
 https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
 https://github.com/xternalz/WideResNet-pytorch/blob/master/wideresnet.py
+https://github.com/keras-team/keras-contrib/blob/master/keras_contrib/applications/wide_resnet.py
 """
 import tensorflow
 import tensorflow as tf
@@ -20,7 +21,7 @@ from tensorflow.keras.layers import Softmax
 from tensorflow.keras import Model
 from tensorflow.keras import layers
 
-class BasicBlocks(layers.Layer):
+class BasicBlocks:
     """
     basic - with two consecutive 3 × 3 convolutions with batch normalization and ReLU
     preceding convolution: conv3×3 and conv3×3
@@ -48,7 +49,7 @@ class BasicBlocks(layers.Layer):
         # strides = 1 s.t. keep the size unchange
         self.conv2d2 = Conv2D(out_planes, kernel_size=3, strides=1, padding="same", use_bias=False)
 
-    def call(self, input_):
+    def __call__(self, input_):
         # First conv 3x3
         out = self.bn1(input_)
         out = self.relu1(out)
@@ -61,8 +62,8 @@ class BasicBlocks(layers.Layer):
 
         return out
 
-class WideResNet(Model):
-    def __init__(self, output_dim=10):
+class WideResNet:
+    def __init__(self, input_dims, output_dim=10):
         super(WideResNet, self).__init__()
         widen_factor = 1
         nChannels = [16, 16*widen_factor, 32*widen_factor, 64*widen_factor]
@@ -80,17 +81,8 @@ class WideResNet(Model):
         self.fc = Dense(output_dim)
         self.softmax = Softmax()
 
-    def call(self, input_):
-        out = self.conv1(input_)
-        #
-        out = self.block1(out)
-        out = self.block2(out)
-        out = self.block3(out)
-        #
-        out = self.avg_pool(out)
-        out = self.flatten(out)
-        out = self.fc(out)
-        out = self.softmax(out)
+    def __call__(self, input_):
+        out = self.model(input_)
         return out
 
 if __name__ == "__main__":
