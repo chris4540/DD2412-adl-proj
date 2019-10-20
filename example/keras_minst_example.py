@@ -131,5 +131,6 @@ def plot_losses(losses):
 if __name__ == "__main__":
     # model, losses = run_network()
     model = FeedFwdNetwork()
-    model.build(input_shape=(10, 784))
+    # model.build(input_shape=(10, 784))
+    model.predict()
     model.summary()
