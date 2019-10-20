@@ -6,7 +6,6 @@ Reference:
     - https://towardsdatascience.com/review-wrns-wide-residual-networks-image-classification-d3feb3fb2004
 
 Notes:
-    TODO:
     1. Used Pre-Activation ResNet
         performing batch norm and ReLU before convolution
         i.e. BN-ReLU-Conv
@@ -84,13 +83,13 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
     return model
 
 
-def __conv1_block(input):
-    x = Conv2D(16, (3, 3), padding='same')(input)
+def __conv1_block(input_):
 
     channel_axis = -1
-
-    x = BatchNormalization(axis=channel_axis)(x)
+    # Pre-Activation
+    x = BatchNormalization(axis=channel_axis)(input_)
     x = Activation('relu')(x)
+    x = Conv2D(16, (3, 3), padding='same')(x)
     return x
 
 
@@ -101,21 +100,22 @@ def __conv2_block(input, k=1, dropout=0.0):
 
 
     # Check if input number of filters is same as 16 * k, else
-    # create convolution2d for this input as downsampling
+    # create convolution2d for this input to fit the output filter size
     # It will be in the case if this is the first block in the block group.
     if init.shape[-1] != 16 * k:
         init = Conv2D(16 * k, (1, 1), activation='linear', padding='same')(init)
 
-    x = Conv2D(16 * k, (3, 3), padding='same')(input)
-    x = BatchNormalization(axis=channel_axis)(x)
+    # Pre-Activation
+    x = BatchNormalization(axis=channel_axis)(input)
     x = Activation('relu')(x)
+    x = Conv2D(16 * k, (3, 3), padding='same')(x)
 
     if dropout > 0.0:
         x = Dropout(dropout)(x)
 
-    x = Conv2D(16 * k, (3, 3), padding='same')(x)
     x = BatchNormalization(axis=channel_axis)(x)
     x = Activation('relu')(x)
+    x = Conv2D(16 * k, (3, 3), padding='same')(x)
 
     m = Add()([init, x])
     return m
@@ -127,21 +127,22 @@ def __conv3_block(input, k=1, dropout=0.0):
     channel_axis = -1
 
     # Check if input number of filters is same as 32 * k, else
-    # create convolution2d for this input as downsampling
+    # create convolution2d for this input to fit the output filter size
     # It will be in the case if this is the first block in the block group.
     if init.shape[-1] != 32 * k:
         init = Conv2D(32 * k, (1, 1), activation='linear', padding='same')(init)
 
-    x = Conv2D(32 * k, (3, 3), padding='same')(input)
-    x = BatchNormalization(axis=channel_axis)(x)
+    # Pre-Activation
+    x = BatchNormalization(axis=channel_axis)(input)
     x = Activation('relu')(x)
+    x = Conv2D(32 * k, (3, 3), padding='same')(x)
 
     if dropout > 0.0:
         x = Dropout(dropout)(x)
 
-    x = Conv2D(32 * k, (3, 3), padding='same')(x)
     x = BatchNormalization(axis=channel_axis)(x)
     x = Activation('relu')(x)
+    x = Conv2D(32 * k, (3, 3), padding='same')(x)
 
     m = Add()([init, x])
     return m
@@ -153,21 +154,21 @@ def ___conv4_block(input, k=1, dropout=0.0):
     channel_axis = -1
 
     # Check if input number of filters is same as 64 * k, else
-    # create convolution2d for this input as downsampling
+    # create convolution2d for this input to fit the output filter size
     # It will be in the case if this is the first block in the block group.
     if init.shape[-1] != 64 * k:
         init = Conv2D(64 * k, (1, 1), activation='linear', padding='same')(init)
 
-    x = Conv2D(64 * k, (3, 3), padding='same')(input)
-    x = BatchNormalization(axis=channel_axis)(x)
+    x = BatchNormalization(axis=channel_axis)(input)
     x = Activation('relu')(x)
+    x = Conv2D(64 * k, (3, 3), padding='same')(x)
 
     if dropout > 0.0:
         x = Dropout(dropout)(x)
 
-    x = Conv2D(64 * k, (3, 3), padding='same')(x)
     x = BatchNormalization(axis=channel_axis)(x)
     x = Activation('relu')(x)
+    x = Conv2D(64 * k, (3, 3), padding='same')(x)
 
     m = Add()([init, x])
     return m
@@ -191,7 +192,11 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
         a Keras Model
 
     Notes:
-        N is a number of blocks in group
+        N is a number of blocks in group.
+        minus 4 as we have
+            1. 1 conv3x3 in conv1_block group
+            2. 1 conv in each group for upsample / downsample in shortcut
+               Each group has exactly one conv1x1 as shortcut size tunning
     '''
 
     N = (depth - 4) // 6
@@ -218,14 +223,22 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
         x = ___conv4_block(x, width, dropout)
         nb_conv += 2
 
-    # Avg pooling + classification
+    assert nb_conv == depth
 
+    # Avg pooling + classification
     x = GlobalAveragePooling2D()(x)
     # TODO
     x = Dense(nb_classes, activation=activation)(x)
+    # x = Dense(nb_classes)(x)
+    # x = Soft
 
     return x
 
 if __name__ == "__main__":
-    model = WideResidualNetwork(16, 1, input_shape=(32, 32, 3))
-    model.summary()
+    n = 16
+    k = 1
+    model = WideResidualNetwork(n, k, input_shape=(32, 32, 3))
+    # model.summary()
+    from tensorflow.keras.utils import plot_model
+    plt_name = "WRN-{}-{}.pdf".format(n, k)
+    plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
