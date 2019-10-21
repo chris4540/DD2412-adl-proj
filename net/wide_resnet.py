@@ -21,8 +21,12 @@ Notes:
         performing batch norm and ReLU before convolution
         i.e. BN-ReLU-Conv
 TODO:
-    1. Dropout
     2. model.add_lost
+
+Visualize the network:
+    ```
+    $ python wide_resnet.py
+    ```
 """
 import tensorflow
 import tensorflow.keras.backend as K
