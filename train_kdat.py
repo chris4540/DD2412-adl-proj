@@ -68,21 +68,22 @@ if __name__ == "__main__":
     student = WideResidualNetwork(16, 1, classes=10, input_shape=(32, 32, 3), has_softmax=False)
     # Train student
     # Iterate over epochs.
-    kd_div = tf.keras.losses.KLDivergence()
+    kd_div = tf.keras.losses.KLD
     loss_metric = tf.keras.metrics.Mean()
+    step = 0
     for epoch in range(3):
         print('Start of epoch %d' % (epoch,))
 
         # Iterate over the batches of the dataset.
-        for step, x_batch_train in enumerate(datagen.flow(x_train, batch_size=128)):
+        for x_batch_train in datagen.flow(x_train, batch_size=128):
             with tf.GradientTape() as tape:
                 teacher_logits = teacher(x_batch_train)
                 student_logits = student(x_batch_train)
-                # Compute reconstruction loss
                 kd_loss = kd_div(teacher_logits, student_logits)
 
                 loss = kd_loss + 0
-                # grads = tf.gradients(loss, student.trainable_weights)
+
+                # grads = tf.gradient(loss, student.trainable_weights
                 grads = tape.gradient(loss, student.trainable_weights)
                 optimizer.apply_gradients(zip(grads, student.trainable_weights))
 
@@ -90,6 +91,7 @@ if __name__ == "__main__":
 
                 if step % 100 == 0:
                     print('step %s: mean loss = %s' % (step, loss_metric.result()))
+            step += 1
 
 
     # # prepare logits
