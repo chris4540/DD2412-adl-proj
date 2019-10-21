@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Wide Residual Network models for Keras.
+"""
+Wide Residual Network models for Keras.
+
+This implementation follows the implementation of the authors' lua version.
+
+Missing info if only check with the author paper:
+    1. Add batchnorm + relu before the avg_pool layer
+    2. conv1x1 used to adjust the input output size.
+       it is called down sampling in the paper
+       no bn+relu before this down sample conv1x1
 
 Reference:
     - [Wide Residual Networks](https://arxiv.org/abs/1605.07146)
@@ -111,7 +120,7 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
     x = Conv2D(nOutputPlane, kernel_size=3, strides=1, padding="same", use_bias=False)(x)
 
     # ==================
-    # shortcut
+    # short circuit
     # ==================
     if nInputPlane != nOutputPlane:
         init = Conv2D(nOutputPlane, kernel_size=1, strides=strides, use_bias=False)(input_)
@@ -177,9 +186,9 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     x = __residual_block_group(x, nChannels[2], nChannels[3], count=N, strides=2)
 
 
-    # Avg pooling + classification;
+    # Avg pooling + fully connected layer
     x = BatchNormalization()(x)
-    x = Activation('relu')(x)
+    x = Activation('relu')(x)    # relu is a must add otherwise cannot train
     x = AveragePooling2D((8, 8))(x)
     x = Flatten()(x)
 
