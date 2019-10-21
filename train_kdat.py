@@ -70,18 +70,22 @@ if __name__ == "__main__":
     # Iterate over epochs.
     kd_div = tf.keras.losses.KLD
     loss_metric = tf.keras.metrics.Mean()
+    train_data_loader = tf.data.Dataset.from_tensor_slices(x_train).batch(128)
+
     for epoch in range(3):
         step = 0
         print('Start of epoch %d' % (epoch,))
 
         # Iterate over the batches of the dataset.
-        for x_batch_train in datagen.flow(x_train, batch_size=128):
+        for x_batch_train in train_data_loader:
             # no checking on autodiff
             teacher_logits = teacher(x_batch_train)
 
             with tf.GradientTape() as tape:
                 student_logits = student(x_batch_train)
-                kd_loss = kd_div(teacher_logits, student_logits)
+                kd_loss = kd_div(
+                    tf.math.softmax(teacher_logits),
+                    tf.math.softmax(student_logits))
                 loss = kd_loss + 0
 
                 grads = tape.gradient(loss, student.trainable_weights)
@@ -91,6 +95,7 @@ if __name__ == "__main__":
 
                 if step % 100 == 0:
                     print('step %s: mean loss = %s' % (step, loss_metric.result()))
+            step += 1
 
 
     # # prepare logits
