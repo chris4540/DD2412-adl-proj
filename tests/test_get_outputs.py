@@ -1,7 +1,7 @@
 """
 How to run:
     cd <project root>
-    python -m tests.<this file>
+    python -m unittest tests/test_get_outputs.py
 
 Ref:
 https://guillaumegenthial.github.io/testing.html
@@ -36,10 +36,17 @@ class Test(unittest.TestCase):
 
         self.assertEqual(interm_values['logits'].shape, (batch_size, self.n_classes))
 
-        # # at 1
-        # shape =
-        # self.assertEqual(interm_values['attention1'].shape, (batch_size, )
-        # self.assertEqual(interm_values['logits'].shape, (batch_size, self.n_classes))
+        # attention1
+        shape = (batch_size, 32, 32, 16*self.width)
+        self.assertEqual(interm_values['attention1'].shape, shape)
+
+        # attention2
+        shape = (batch_size, 16, 16, 32*self.width)
+        self.assertEqual(interm_values['attention2'].shape, shape)
+
+        # attention3
+        shape = (batch_size, 8, 8, 64*self.width)
+        self.assertEqual(interm_values['attention3'].shape, shape)
 
 
 
