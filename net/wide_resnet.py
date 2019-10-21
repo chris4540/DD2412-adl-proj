@@ -64,7 +64,7 @@ class Identity(Layer):
 
 def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
                         input_shape=None,
-                        classes=10, activation='softmax'):
+                        classes=10, has_softmax=True):
     """Instantiate the Wide Residual Network architecture,
         optionally loading weights pre-trained
         on CIFAR-10. Note that when using TensorFlow,
@@ -113,7 +113,7 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
             depth=depth,
             width=width,
             dropout=dropout_rate,
-            activation=activation)
+            has_softmax=has_softmax)
     #
     inputs = img_input
     # Create model.
@@ -187,7 +187,7 @@ def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides, dr
 
 
 def __create_wide_residual_network(nb_classes, img_input, depth=28,
-                                   width=8, dropout=0.0, activation='softmax'):
+                                   width=8, dropout=0.0, has_softmax=True):
     ''' Creates a Wide Residual Network with specified parameters
 
     Args:
@@ -242,7 +242,8 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
 
     # Final classification layer
     x = Dense(nb_classes, name='logits')(x)
-    x = Softmax(axis=-1)(x)
+    if has_softmax:
+        x = Softmax(axis=-1)(x)
 
     return x
 
