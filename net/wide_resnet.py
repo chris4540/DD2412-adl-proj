@@ -98,10 +98,15 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
     # ==================
     # residual layers
     # ==================
+    # The bn1 and relu1 may share with the shortcut convolution
+    bn1 = BatchNormalization()
+    relu1 = Activation('relu')
+    conv1 = Conv2D(nOutputPlane, (3, 3), strides=strides, padding="same")
+
     # Pre-Activation
-    x = BatchNormalization()(input_)
-    x = Activation('relu')(x)
-    x = Conv2D(nOutputPlane, (3, 3), strides=strides, padding="same")(x)
+    x = bn1(input_)
+    x = relu1(x)
+    x = conv1(x)
 
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
@@ -112,8 +117,8 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
     # ==================
     if nInputPlane != nOutputPlane:
         # need a down sample the last layer output in shortcut
-        init = BatchNormalization()(input_)
-        init = Activation('relu')(init)
+        init = bn1(input_)
+        init = relu1(init)
         init = Conv2D(nOutputPlane, (1, 1), strides=strides)(init)
     else:
         init = input_
