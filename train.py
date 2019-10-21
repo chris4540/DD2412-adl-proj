@@ -5,11 +5,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import utils
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau
-from models import *
-
-IMG_HEIGHT = 32
-IMG_WIDTH = 32
-
+from net.wide_resnet import WideResidualNetwork
 
 def set_seed(seed):
     # NumPy
@@ -48,28 +44,30 @@ def lr_schedule(epoch):
 
 
 def train(depth=16, width=1):
-    
+
     print(depth, width)
-    # depth = 40
-    # width = 2
+    depth = 40
+    width = 2
     # seed = 42
     batch_size = 128
     epochs = 200
 
     model_type = 'WRN-%d-%d' % (depth, width)
-    shape, classes = (32, 32, 3), 10
+    shape = (32, 32, 3)
+    classes = 10
 
     # set_seed(seed)
-    wrn_model = build_model(shape, classes, depth, width)
+    # wrn_model = build_model(shape, classes, depth, width)
+    wrn_model = WideResidualNetwork(depth, width, classes=classes, input_shape=(32, 32, 3))
 
     x_train, y_train, x_test, y_test = get_cifar_data()
 
     # compile model
-    opt = SGD(learning_rate=lr_schedule(0), momentum=0.9, decay=0.0005)
-    # opt = Adam(learning_rate=lr_schedule(0))
+    optim = SGD(learning_rate=lr_schedule(0), momentum=0.9, decay=0.0005)
+    # optim = Adam(learning_rate=lr_schedule(0))
 
     wrn_model.compile(loss='categorical_crossentropy',
-                      optimizer=opt,
+                      optimizer=optim,
                       metrics=['accuracy'])
 
     # Prepare model model saving directory.
