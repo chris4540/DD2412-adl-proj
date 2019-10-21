@@ -11,6 +11,8 @@ https://machinelearningmastery.com/reproducible-results-neural-networks-keras/
 
 ### KD in keras
 https://github.com/tripdancer0916/keras-knowledge-distillation/blob/master/born_again/born_again.py
+https://github.com/TropComplique/knowledge-distillation-keras
 
 ## Save model
 https://www.tensorflow.org/guide/keras/save_and_serialize
+

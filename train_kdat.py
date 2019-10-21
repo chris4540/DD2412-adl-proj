@@ -9,10 +9,10 @@ import tensorflow as tf
 tf.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from net.wide_resnet import WideResidualNetwork
 from utils import preprocess
-from tf.keras.optimizers import SGD
-from tf.keras.callbacks import LearningRateScheduler
-from tf.keras.preprocessing.image import ImageDataGenerator
-from tf.keras.models import Model
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.callbacks import LearningRateScheduler
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Model
 
 
 def lr_schedule(epoch):
