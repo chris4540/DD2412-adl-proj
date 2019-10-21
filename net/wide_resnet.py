@@ -20,6 +20,9 @@ Notes:
     1. Used Pre-Activation ResNet
         performing batch norm and ReLU before convolution
         i.e. BN-ReLU-Conv
+TODO:
+    1. Dropout
+    2. model.add_lost
 """
 import tensorflow
 import tensorflow.keras.backend as K
