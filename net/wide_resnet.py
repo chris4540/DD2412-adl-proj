@@ -22,6 +22,7 @@ Notes:
         i.e. BN-ReLU-Conv
 """
 import tensorflow
+import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import Dropout
@@ -198,11 +199,76 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
 
     return x
 
+# ========================================================
+# # we need this for all other KD trainings and attention calculations
+def get_intm_outputs_of(model, input_, mode="eval"):
+    """
+    Given model and the input data, outputs:
+        - the logits for KD
+        - ctivations required for attention training
+
+    :param model: either student or teacher model
+    :param input: input batch of images
+    :param mode: 'eval' if in evalution mode or 'train' if in training model
+    :return: a dictionary of outputs
+    Return example:
+        {
+            "logits": ...,
+            "attention1": ...,
+            "attention2": ...,
+            "attention3": ...,
+        }
+
+    Reference:
+    https://keras.io/getting-started/faq/#how-can-i-obtain-the-output-of-an-intermediate-layer
+    """
+    if not (mode in ["eval", "train"]):
+        raise ValueError('You should input model either train or eval')
+
+    output_layer_names = ['logits', 'attention1', 'attention2', 'attention3']
+
+    # Set up input and out of the function
+    input_layers = [model.layers[0].input]
+    output_layers = [model.get_layer(l).output
+                                for l in output_layer_names]
+
+    if mode == "train":
+        learning_phase_flag = 1
+    else: # eval mode
+        learning_phase_flag = 0
+
+    get_outputs_fn = K.function(input_layers, output_layers)
+
+    outputs = get_outputs_fn([input_, learning_phase_flag])
+
+    ret = {k: outputs[i] for i, k in enumerate(output_layer_names)}
+    return ret
+
+# we need this for all other KD trainings and attention calculations
+def get_model_outputs(model, input, mode):
+    """
+    given model and the input data, outputs the logits and activations required for attention training
+
+    :param model: either student or teacher model
+    :param input: input batch of images
+    :param mode: 0 for test mode or 1 for train mode
+    :return: [logits, activations of 3 main blocks]
+
+    TODO:
+        1. use ```get_intm_outputs_of``` instead
+        2. Remove this when fully migrated
+    """
+    output_layer_names = ['logits', 'attention1', 'attention2', 'attention3']
+    get_outputs = K.function([model.layers[0].input],
+                             [model.get_layer(l).output for l in output_layer_names])
+
+    return get_outputs([input, mode])
+
 if __name__ == "__main__":
     n = 16
     k = 2
     model = WideResidualNetwork(n, k, input_shape=(32, 32, 3))
     model.summary()
-    from tensorflow.keras.utils import plot_model
-    plt_name = "new-WRN-{}-{}.pdf".format(n, k)
-    plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
+    # from tensorflow.keras.utils import plot_model
+    # plt_name = "new-WRN-{}-{}.pdf".format(n, k)
+    # plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
