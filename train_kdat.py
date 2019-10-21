@@ -46,10 +46,12 @@ if __name__ == "__main__":
 
     teacher.fit_generator(datagen.flow(x_train, y_train, batch_size=128),
                             validation_data=(x_test, y_test),
-                            epochs=5, verbose=1,
+                            epochs=2, verbose=1,
                             callbacks=callbacks)
 
     scores = teacher.evaluate(x_test, y_test, verbose=1)
     print('Test loss:', scores[0])
     print('Test accuracy:', scores[1])
     # ====================================================================
+    # re-create a model
+    teacher = Model()
