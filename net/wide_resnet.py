@@ -4,6 +4,7 @@
 Reference:
     - [Wide Residual Networks](https://arxiv.org/abs/1605.07146)
     - https://towardsdatascience.com/review-wrns-wide-residual-networks-image-classification-d3feb3fb2004
+    - https://github.com/szagoruyko/wide-residual-networks/blob/master/models/wide-resnet.lua
 
 Notes:
     1. Used Pre-Activation ResNet
@@ -89,10 +90,13 @@ def __conv1_block(input_):
     return x
 
 
-def __basic_residual_block(input_, nInputPlane, nOutputPlane, strides):
+def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
+    """
+    See [Wide Residual Networks] Figure 1(a); B(3, 3) implementation
+    """
 
     # ==================
-    # residual block
+    # residual layers
     # ==================
     # Pre-Activation
     x = BatchNormalization()(input_)
@@ -103,7 +107,9 @@ def __basic_residual_block(input_, nInputPlane, nOutputPlane, strides):
     x = Activation('relu')(x)
     x = Conv2D(nOutputPlane, (3, 3), strides=1, padding="same")(x)
 
+    # ==================
     # shortcut
+    # ==================
     if nInputPlane != nOutputPlane:
         # need a down sample the last layer output in shortcut
         init = BatchNormalization()(input_)
@@ -123,92 +129,10 @@ def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides):
     for i in range(count):
         if i == 0:
             # strides = nOutputPlane // nInputPlane
-            x = __basic_residual_block(x, nInputPlane, nOutputPlane, strides)
+            x = __basic_residual_basic_block(x, nInputPlane, nOutputPlane, strides)
         else:
-            x = __basic_residual_block(x, nOutputPlane, nOutputPlane, strides=1)
+            x = __basic_residual_basic_block(x, nOutputPlane, nOutputPlane, strides=1)
     return x
-
-# def __conv2_block(input, k=1, dropout=0.0):
-#     init = input
-
-#     channel_axis = -1
-
-
-#     # Check if input number of filters is same as 16 * k, else
-#     # create convolution2d for this input to fit the output filter size
-#     # It will be in the case if this is the first block in the block group.
-#     if init.shape[-1] != 16 * k:
-#         init = Conv2D(16 * k, (1, 1), padding='same')(init)
-
-#     # Pre-Activation
-#     x = BatchNormalization(axis=channel_axis)(input)
-#     x = Activation('relu')(x)
-#     x = Conv2D(16 * k, (3, 3), padding='same')(x)
-
-#     if dropout > 0.0:
-#         x = Dropout(dropout)(x)
-
-#     x = BatchNormalization(axis=channel_axis)(x)
-#     x = Activation('relu')(x)
-#     x = Conv2D(16 * k, (3, 3), padding='same')(x)
-
-#     m = Add()([init, x])
-#     return m
-
-
-# def __conv3_block(input, k=1, dropout=0.0):
-#     init = input
-
-#     channel_axis = -1
-#     strides = 2
-
-#     # Check if input number of filters is same as 32 * k, else
-#     # create convolution2d for this input to fit the output filter size
-#     # It will be in the case if this is the first block in the block group.
-#     if init.shape[-1] != 32 * k:
-#         init = Conv2D(32 * k, (1, 1), strides=strides, padding='same')(init)
-
-#     # Pre-Activation
-#     x = BatchNormalization(axis=channel_axis)(input)
-#     x = Activation('relu')(x)
-#     x = Conv2D(32 * k, (3, 3), padding='same')(x)
-
-#     if dropout > 0.0:
-#         x = Dropout(dropout)(x)
-
-#     x = BatchNormalization(axis=channel_axis)(x)
-#     x = Activation('relu')(x)
-#     x = Conv2D(32 * k, (3, 3), padding='same')(x)
-
-#     m = Add()([init, x])
-#     return m
-
-
-# def ___conv4_block(input, k=1, dropout=0.0):
-#     init = input
-
-#     channel_axis = -1
-
-#     # Check if input number of filters is same as 64 * k, else
-#     # create convolution2d for this input to fit the output filter size
-#     # It will be in the case if this is the first block in the block group.
-#     if init.shape[-1] != 64 * k:
-#         init = Conv2D(64 * k, (1, 1), padding='same')(init)
-
-#     x = BatchNormalization(axis=channel_axis)(input)
-#     x = Activation('relu')(x)
-#     x = Conv2D(64 * k, (3, 3), padding='same')(x)
-
-#     if dropout > 0.0:
-#         x = Dropout(dropout)(x)
-
-#     x = BatchNormalization(axis=channel_axis)(x)
-#     x = Activation('relu')(x)
-#     x = Conv2D(64 * k, (3, 3), padding='same')(x)
-
-#     m = Add()([init, x])
-#     return m
-
 
 
 def __create_wide_residual_network(nb_classes, img_input, depth=28,
