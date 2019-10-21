@@ -124,7 +124,7 @@ def __conv1_block(input_):
     return x
 
 
-def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
+def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides, dropout=0.0):
     """
     See [Wide Residual Networks] Figure 1(a); B(3, 3) implementation
     TODO:
@@ -132,7 +132,7 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
     """
 
     # ==================
-    # residual layers
+    # residual blocks
     # ==================
     # Pre-Activation
     x = BatchNormalization()(input_)
@@ -141,6 +141,12 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
 
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
+    # Mentioned in the paper section 2.4
+    # A dropout layer shoud be after ReLU to perturb batch normalization in the
+    # next residual block and prevent it from overfitting.
+    if dropout > 0:
+        x = Dropout(dropout)(x)
+
     x = Conv2D(nOutputPlane, kernel_size=3, strides=1, padding="same", use_bias=False)(x)
 
     # ==================
@@ -154,7 +160,7 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
     m = Add()([init, x])
     return m
 
-def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides):
+def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides, dropout=0.0):
     """
     For stacking blocks
     TODO:
@@ -163,10 +169,13 @@ def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides):
     x = input_
     for i in range(count):
         if i == 0:
-            # strides = nOutputPlane // nInputPlane
-            x = __basic_residual_basic_block(x, nInputPlane, nOutputPlane, strides)
+            x = __basic_residual_basic_block(
+                    x, nInputPlane, nOutputPlane, strides, dropout=dropout)
         else:
-            x = __basic_residual_basic_block(x, nOutputPlane, nOutputPlane, strides=1)
+            # As the first block in group resolved unequal input and output
+            # on this block, the strides will be 1 for this
+            x = __basic_residual_basic_block(
+                x, nOutputPlane, nOutputPlane, strides=1, dropout=dropout)
     return x
 
 
@@ -202,16 +211,19 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     nChannels = [16, 16*width, 32*width, 64*width]
 
     # Block Group: conv2
-    x = __residual_block_group(x, nChannels[0], nChannels[1], count=N, strides=1)
+    x = __residual_block_group(x, nChannels[0], nChannels[1],
+                               count=N, strides=1, dropout=dropout)
     x = Identity(name='attention1')(x)  # Identity layer
 
 
     # Block Group: conv3
-    x = __residual_block_group(x, nChannels[1], nChannels[2], count=N, strides=2)
+    x = __residual_block_group(x, nChannels[1], nChannels[2],
+                               count=N, strides=2, dropout=dropout)
     x = Identity(name='attention2')(x)  # Identity layer
 
     # Block Group: conv4
-    x = __residual_block_group(x, nChannels[2], nChannels[3], count=N, strides=2)
+    x = __residual_block_group(x, nChannels[2], nChannels[3],
+                               count=N, strides=2, dropout=dropout)
     x = Identity(name='attention3')(x)  # Identity layer
 
 
@@ -295,7 +307,7 @@ def get_model_outputs(model, input, mode):
 if __name__ == "__main__":
     n = 16
     k = 2
-    model = WideResidualNetwork(n, k, input_shape=(32, 32, 3))
+    model = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0)
     model.summary()
     from tensorflow.keras.utils import plot_model
     plt_name = "new-WRN-{}-{}.pdf".format(n, k)
