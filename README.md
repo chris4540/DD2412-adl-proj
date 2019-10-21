@@ -16,3 +16,5 @@ https://github.com/TropComplique/knowledge-distillation-keras
 ## Save model
 https://www.tensorflow.org/guide/keras/save_and_serialize
 
+## autodiff
+https://www.tensorflow.org/tutorials/customization/autodiff
