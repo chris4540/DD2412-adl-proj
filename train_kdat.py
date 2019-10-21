@@ -16,7 +16,7 @@ from tensorflow.keras.models import Model
 
 
 def lr_schedule(epoch):
-    lr = 1e-1
+    lr = 0.05
     if epoch > 160:
         lr *= 0.008
     elif epoch > 120:
@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     teacher.fit_generator(datagen.flow(x_train, y_train, batch_size=128),
                             validation_data=(x_test, y_test),
-                            epochs=2, verbose=1,
+                            epochs=10, verbose=1,
                             callbacks=callbacks)
 
     scores = teacher.evaluate(x_test, y_test, verbose=1)
@@ -83,7 +83,7 @@ if __name__ == "__main__":
                 student_logits = student(x_batch_train)
                 kd_loss = kd_div(teacher_logits, student_logits)
                 loss = kd_loss + 0
-                # grads = tf.gradient(loss, student.trainable_weights
+
                 grads = tape.gradient(loss, student.trainable_weights)
                 optimizer.apply_gradients(zip(grads, student.trainable_weights))
 
