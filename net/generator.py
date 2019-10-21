@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Dropout, Add, Input, BatchNormalization, Activation, LeakyReLU
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, Flatten, Conv2DTranspose
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, Flatten, Conv2DTranspose, Reshape
 
 def generator(input_dimension=100):
     model = tf.keras.Sequential()
@@ -10,7 +10,7 @@ def generator(input_dimension=100):
     model.add(BatchNormalization())
     model.add(LeakyReLU())
 
-    model.add(layers.Reshape((8, 8, 128)))
+    model.add(Reshape((8, 8, 128)))
     assert model.output_shape == (None, 8, 8, 128)
 
     model.add(Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same'))
