@@ -89,7 +89,7 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
 
 def __conv1_block(input_):
 
-    x = Conv2D(16, (3, 3), padding='same', use_bias=False)(input_)
+    x = Conv2D(16, kernel_size=3, padding='same', use_bias=False)(input_)
     return x
 
 
@@ -101,25 +101,20 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
     # ==================
     # residual layers
     # ==================
-    # The bn1 and relu1 may share with the shortcut convolution
-    bn1 = BatchNormalization()
-    relu1 = Activation('relu')
-    conv1 = Conv2D(nOutputPlane, (3, 3), strides=strides, padding="same", use_bias=False)
-
     # Pre-Activation
-    x = bn1(input_)
-    y = relu1(x)
-    x = conv1(y)
+    x = BatchNormalization()(input_)
+    x = Activation('relu')(x)
+    x = Conv2D(nOutputPlane, kernel_size=3, strides=strides, padding='same', use_bias=False)(x)
 
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    x = Conv2D(nOutputPlane, (3, 3), strides=1, padding="same", use_bias=False)(x)
+    x = Conv2D(nOutputPlane, kernel_size=3, strides=1, padding="same", use_bias=False)(x)
 
     # ==================
     # shortcut
     # ==================
     if nInputPlane != nOutputPlane:
-        init = Conv2D(nOutputPlane, (1, 1), strides=strides, use_bias=False)(y)
+        init = Conv2D(nOutputPlane, kernel_size=1, strides=strides, use_bias=False)(input_)
     else:
         init = input_
 
