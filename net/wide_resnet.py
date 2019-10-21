@@ -105,8 +105,8 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
 
     # Pre-Activation
     x = bn1(input_)
-    x = relu1(x)
-    x = conv1(x)
+    y = relu1(x)
+    x = conv1(y)
 
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
@@ -116,10 +116,7 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
     # shortcut
     # ==================
     if nInputPlane != nOutputPlane:
-        # need a down sample the last layer output in shortcut
-        init = bn1(input_)
-        init = relu1(init)
-        init = Conv2D(nOutputPlane, (1, 1), strides=strides)(init)
+        init = Conv2D(nOutputPlane, (1, 1), strides=strides)(y)
     else:
         init = input_
 
@@ -192,7 +189,7 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     return x
 
 if __name__ == "__main__":
-    n = 10
+    n = 16
     k = 2
     model = WideResidualNetwork(n, k, input_shape=(32, 32, 3))
     model.summary()
