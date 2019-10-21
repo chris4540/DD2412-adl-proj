@@ -100,5 +100,5 @@ if __name__ == "__main__":
     output_dim = 10
     model = build_model(input_dim, output_dim, n, k)
     model.summary()
-    plt_name = "WRN-{}-{}.pdf".format(n, k)
-    plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
+    # plt_name = "WRN-{}-{}.pdf".format(n, k)
+    # plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
