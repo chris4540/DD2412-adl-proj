@@ -42,12 +42,22 @@ def lr_schedule(epoch):
     print('Learning rate: ', lr)
     return lr
 
-
+def random_pad_crop(img):
+    pad=4
+    paddings = ([pad,pad], [pad,pad], [0,0])
+    img = np.pad(img, paddings, 'reflect')
+    # Note: image_data_format is 'channel_last'
+    assert img.shape[2] == 3
+    height, width = img.shape[0], img.shape[1]
+    dy, dx = 32, 32
+    x = np.random.randint(0, width - dx + 1)
+    y = np.random.randint(0, height - dy + 1)
+    copped_image = img[y:(y+dy), x:(x+dx), :]
+    #print(copped_image.shape)
+    return copped_image
+    
 def train(depth=16, width=1):
-
     print(depth, width)
-    depth = 40
-    width = 2
     # seed = 42
     batch_size = 128
     epochs = 200
@@ -93,6 +103,7 @@ def train(depth=16, width=1):
             height_shift_range=0.1,
             horizontal_flip=True,
             vertical_flip=False,
+            preprocessing_function=random_pad_crop,
             rescale=None
             )
 
