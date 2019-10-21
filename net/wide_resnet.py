@@ -5,6 +5,7 @@ Reference:
     - [Wide Residual Networks](https://arxiv.org/abs/1605.07146)
     - https://towardsdatascience.com/review-wrns-wide-residual-networks-image-classification-d3feb3fb2004
     - https://github.com/szagoruyko/wide-residual-networks/blob/master/models/wide-resnet.lua
+    - https://github.com/xternalz/WideResNet-pytorch/blob/master/wideresnet.py
 
 Notes:
     1. Used Pre-Activation ResNet
@@ -18,6 +19,8 @@ from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Activation
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import GlobalAveragePooling2D
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.layers import AveragePooling2D
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import Add
@@ -86,7 +89,7 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
 
 def __conv1_block(input_):
 
-    x = Conv2D(16, (3, 3), padding='same')(input_)
+    x = Conv2D(16, (3, 3), padding='same', use_bias=False)(input_)
     return x
 
 
@@ -101,7 +104,7 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
     # The bn1 and relu1 may share with the shortcut convolution
     bn1 = BatchNormalization()
     relu1 = Activation('relu')
-    conv1 = Conv2D(nOutputPlane, (3, 3), strides=strides, padding="same")
+    conv1 = Conv2D(nOutputPlane, (3, 3), strides=strides, padding="same", use_bias=False)
 
     # Pre-Activation
     x = bn1(input_)
@@ -110,13 +113,13 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
 
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    x = Conv2D(nOutputPlane, (3, 3), strides=1, padding="same")(x)
+    x = Conv2D(nOutputPlane, (3, 3), strides=1, padding="same", use_bias=False)(x)
 
     # ==================
     # shortcut
     # ==================
     if nInputPlane != nOutputPlane:
-        init = Conv2D(nOutputPlane, (1, 1), strides=strides)(y)
+        init = Conv2D(nOutputPlane, (1, 1), strides=strides, use_bias=False)(y)
     else:
         init = input_
 
@@ -168,21 +171,24 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
 
     nChannels = [16, 16*width, 32*width, 64*width]
 
-    # Block Group 2
+    # Block Group: conv2
     x = __residual_block_group(x, nChannels[0], nChannels[1], count=N, strides=1)
 
 
-    # Block Group 3
+    # Block Group: conv3
     x = __residual_block_group(x, nChannels[1], nChannels[2], count=N, strides=2)
 
-    # Block Group 3
+    # Block Group: conv4
     x = __residual_block_group(x, nChannels[2], nChannels[3], count=N, strides=2)
 
 
-    # Avg pooling + classification
-    x = GlobalAveragePooling2D()(x)
-    # TODO
-    # x = Dense(nb_classes, activation=activation)(x)
+    # Avg pooling + classification;
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = AveragePooling2D((8, 8))(x)
+    x = Flatten()(x)
+
+    # Final classification layer
     x = Dense(nb_classes)(x)
     x = Softmax(axis=-1)(x)
 
