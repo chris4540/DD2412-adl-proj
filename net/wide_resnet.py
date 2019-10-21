@@ -36,7 +36,24 @@ from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import Add
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Softmax
+from tensorflow.keras.layers import Lambda
+from tensorflow.keras.layers import Layer
 import tensorflow.keras.backend as K
+
+
+class Identity(Layer):
+    """
+    Identity layer, like nn.Identity in pytorch
+    """
+
+    def __init__(self, **kwargs):
+        super(Identity, self).__init__(**kwargs)
+
+    def call(self, x):
+        return x
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
                         input_shape=None,
@@ -98,6 +115,10 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
     return model
 
 def __conv1_block(input_):
+    """
+    The first convolution layer of WRN.
+    As the paper call it conv1 group, we call it conv1_block for convention
+    """
 
     x = Conv2D(16, kernel_size=3, padding='same', use_bias=False)(input_)
     return x
@@ -106,6 +127,8 @@ def __conv1_block(input_):
 def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
     """
     See [Wide Residual Networks] Figure 1(a); B(3, 3) implementation
+    TODO:
+        doc
     """
 
     # ==================
@@ -134,6 +157,8 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides):
 def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides):
     """
     For stacking blocks
+    TODO:
+        doc
     """
     x = input_
     for i in range(count):
@@ -178,13 +203,16 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
 
     # Block Group: conv2
     x = __residual_block_group(x, nChannels[0], nChannels[1], count=N, strides=1)
+    x = Identity(name='attention1')(x)  # Identity layer
 
 
     # Block Group: conv3
     x = __residual_block_group(x, nChannels[1], nChannels[2], count=N, strides=2)
+    x = Identity(name='attention2')(x)  # Identity layer
 
     # Block Group: conv4
     x = __residual_block_group(x, nChannels[2], nChannels[3], count=N, strides=2)
+    x = Identity(name='attention3')(x)  # Identity layer
 
 
     # Avg pooling + fully connected layer
@@ -194,7 +222,7 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     x = Flatten()(x)
 
     # Final classification layer
-    x = Dense(nb_classes)(x)
+    x = Dense(nb_classes, name='logits')(x)
     x = Softmax(axis=-1)(x)
 
     return x
@@ -269,6 +297,6 @@ if __name__ == "__main__":
     k = 2
     model = WideResidualNetwork(n, k, input_shape=(32, 32, 3))
     model.summary()
-    # from tensorflow.keras.utils import plot_model
-    # plt_name = "new-WRN-{}-{}.pdf".format(n, k)
-    # plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
+    from tensorflow.keras.utils import plot_model
+    plt_name = "new-WRN-{}-{}.pdf".format(n, k)
+    plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
