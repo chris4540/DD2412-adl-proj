@@ -1,6 +1,7 @@
 import tensorflow as tf
+tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from net.generator import NavieGenerator
-from utils.cosine_anealing import *
+from utils.cosine_anealing import CosineAnnealingScheduler
 from utils.losses import *
 from tensorflow.keras.optimizers import Adam
 from net.wide_resnet import WideResidualNetwork
@@ -45,9 +46,10 @@ def cosine_lr_schedule(epoch, T_max, eta_max, eta_min=0):
     return lr
 
 for total_batches in range(total_n_pseudo_batches):
+    # sample from latern space to make an image
     z = tf.random.normal([batch_size, z_dim])
 
-    #generator training
+    # Generator training
     for ng in range(ng_batches):
         with tf.GradientTape() as gtape:
             pseudo_images = generator_model(z)
@@ -68,6 +70,7 @@ for total_batches in range(total_n_pseudo_batches):
         if total_batches % 2 == 0:
             print('step %s: generator mean loss = %s' % (total_batches, gen_loss_metric.result()))
 
+    # Student training
     for ns in range(ns_batches):
         with tf.GradientTape() as stape:
             pseudo_images = generator_model(z)
