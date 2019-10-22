@@ -6,7 +6,7 @@ https://www.tensorflow.org/guide/keras/custom_layers_and_models
 """
 import tensorflow as tf
 # Must run this in order to have similar result as TF2.0
-tf.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
+tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from net.wide_resnet import WideResidualNetwork
 from utils import preprocess
 from tensorflow.keras.optimizers import SGD

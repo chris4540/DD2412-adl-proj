@@ -194,13 +194,13 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
 
 
     # Block Group: conv3
-    x = __residual_block_group(att1, nChannels[1], nChannels[2],
+    x = __residual_block_group(x, nChannels[1], nChannels[2],
                                count=N, strides=2, dropout=dropout)
     act2 = x
     # att2 = Identity(name='attention2')(x)  # Identity layer
 
     # Block Group: conv4
-    x = __residual_block_group(att2, nChannels[2], nChannels[3],
+    x = __residual_block_group(x, nChannels[2], nChannels[3],
                                count=N, strides=2, dropout=dropout)
     act3 = x
     # att3 = Identity(name='attention3')(x)  # Identity layer
