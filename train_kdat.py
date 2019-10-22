@@ -30,6 +30,7 @@ import tensorflow as tf
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from net.wide_resnet import WideResidualNetwork
 from utils import preprocess
+from utils.losses import attention_loss
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -46,63 +47,6 @@ def lr_schedule(epoch):
         lr *= 0.2
     print('Learning rate: ', lr)
     return lr
-
-def spatial_attention_map(act_tensor, p=2):
-    """
-    Spatial attention mapping function to map the activation tensor with shape
-    (H, W, C) to (H, W).
-
-    We employed:
-        sum of absolute values raised to the power of 2
-
-    The f(A_{l}) is the paper of replication
-
-    Args:
-        act_tensor: activation tensor with shape (H, W, C)
-    Output:
-        a spatial attention map with shape (H, W)
-    """
-
-    out = tf.pow(act_tensor, p)
-    out = tf.reduce_mean(out, axis=-1)
-    # flatten it
-    out = tf.reshape(out, [out.shape[0], -1])
-
-    # renormalize them
-    out = tf.linalg.l2_normalize(out)
-    return out
-
-def attention_loss(act1, act2):
-    """
-    Return the activation loss. The loss is the L2 distances between two
-    activation map
-
-    Args:
-        act_map_1:
-        act_map_2:
-
-    Return:
-        a floating point number representing the loss. As we use tensorflow,
-        the floating point number would be a number hold in tf.Tensor
-
-    TODO:
-        check their implementation and code consistency
-
-    Ref:
-    https://github.com/szagoruyko/attention-transfer/blob/893df5488f93691799f082a70e2521a9dc2ddf2d/utils.py#L22
-    """
-    # get the activation map first
-    act_map_1 = spatial_attention_map(act1)
-    act_map_2 = spatial_attention_map(act2)
-
-    # This is the author written in the paper
-    # ret = tf.norm(act_map_2 - act_map_1, axis=-1)
-
-    # This is the implementatin they have
-    out = tf.pow(act_map_1 - act_map_2, 2)
-    ret = tf.reduce_mean(out, axis=-1)
-    return ret
-
 # ============================================================================
 # main
 if __name__ == "__main__":
