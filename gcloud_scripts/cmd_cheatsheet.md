@@ -1,3 +1,7 @@
+- Login
+```bash
+gcloud auth login
+```
 - Check default project
 ```bash
 gcloud config get-value project
