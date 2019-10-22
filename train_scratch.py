@@ -1,3 +1,8 @@
+"""
+TO DO: 
+    1. Fix seeds
+    2. Consider upgrading randomCrop (v2.0)
+"""
 import os
 import sys
 from tensorflow.keras.datasets import cifar10
