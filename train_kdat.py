@@ -13,7 +13,7 @@ from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Model
-
+from tensorflow.keras.utils import normalize
 
 def lr_schedule(epoch):
     lr = 0.05
@@ -25,47 +25,96 @@ def lr_schedule(epoch):
         lr *= 0.2
     print('Learning rate: ', lr)
     return lr
+
+def spatial_attention_map(act_tensor, p=2):
+    """
+    Spatial attention mapping function to map the activation tensor with shape
+    (H, W, C) to (H, W).
+
+    We employed:
+        sum of absolute values raised to the power of 2
+
+    The f(A_{l}) is the paper of replication
+
+    Args:
+        act_tensor: activation tensor with shape (H, W, C)
+    Output:
+        a spatial attention map with shape (H, W)
+    """
+
+    out = tf.pow(act_tensor, p)
+    out = tf.reduce_mean(out, axis=-1)
+    # flatten it
+    out = tf.reshape(out, [out.shape[0], -1])
+
+    # renormalize them
+    out = tf.linalg.l2_normalize(out)
+    return out
+
+def attention_loss(act1, act2):
+    """
+    Return the activation loss. The loss is the L2 distances between two
+    activation map
+
+    Args:
+        act_map_1:
+        act_map_2:
+
+    Return:
+        a floating point number representing the loss. As we use tensorflow,
+        the floating point number would be a number hold in tf.Tensor
+    """
+    # get the activation map first
+    act_map_1 = spatial_attention_map(act1)
+    act_map_2 = spatial_attention_map(act2)
+    ret = tf.norm(act_map_2 - act_map_1, axis=-1)
+    return ret
+
 # ============================================================================
 # main
 if __name__ == "__main__":
-    # =======================================================================
-    teacher = WideResidualNetwork(40, 2, classes=10, input_shape=(32, 32, 3))
+    beta = 250
+    # # =======================================================================
+    # teacher = WideResidualNetwork(40, 2, classes=10, input_shape=(32, 32, 3))
 
     x_train, y_train, x_test, y_test = preprocess.get_cifar_data()
-    # compile model
-    optim = SGD(learning_rate=lr_schedule(0), momentum=0.9, decay=0.0005)
-    teacher.compile(loss='categorical_crossentropy',
-                      optimizer=optim,
-                      metrics=['accuracy'])
+    # # compile model
+    # optim = SGD(learning_rate=lr_schedule(0), momentum=0.9, decay=0.0005)
+    # teacher.compile(loss='categorical_crossentropy',
+    #                   optimizer=optim,
+    #                   metrics=['accuracy'])
 
-    lr_scheduler = LearningRateScheduler(lr_schedule)
+    # lr_scheduler = LearningRateScheduler(lr_schedule)
 
-    callbacks = [lr_scheduler]
+    # callbacks = [lr_scheduler]
 
     # use the plain generator
-    datagen = ImageDataGenerator()
+    # datagen = ImageDataGenerator()
 
-    datagen.fit(x_train)
+    # datagen.fit(x_train)
 
-    teacher.fit_generator(datagen.flow(x_train, y_train, batch_size=128),
-                            validation_data=(x_test, y_test),
-                            epochs=10, verbose=1,
-                            callbacks=callbacks)
+    # teacher.fit_generator(datagen.flow(x_train, y_train, batch_size=128),
+    #                         validation_data=(x_test, y_test),
+    #                         epochs=10, verbose=1,
+    #                         callbacks=callbacks)
 
-    scores = teacher.evaluate(x_test, y_test, verbose=1)
-    print('Test loss:', scores[0])
-    print('Test accuracy:', scores[1])
-    # ====================================================================
-    # re-create a model
-    teacher = Model(teacher.input, teacher.get_layer('logits').output)
-    # now model outputs logits
-    print(teacher.summary())
+    # scores = teacher.evaluate(x_test, y_test, verbose=1)
+    # print('Test loss:', scores[0])
+    # print('Test accuracy:', scores[1])
+    # # ====================================================================
+    # # re-create a model
+    # teacher = Model(teacher.input, teacher.get_layer('logits').output)
+    teacher = WideResidualNetwork(
+        40, 2, classes=10, input_shape=(32, 32, 3),
+        has_softmax=False, output_activations=True)
+    teacher.load_weights('saved_models/cifar10_WRN-40-2_model.h5')
 
     teacher.trainable = False
 
     optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
     # student
-    student = WideResidualNetwork(16, 1, classes=10, input_shape=(32, 32, 3), has_softmax=False)
+    student = WideResidualNetwork(16, 1, classes=10, input_shape=(32, 32, 3),
+                                  has_softmax=False, output_activations=True)
     # Train student
     # Iterate over epochs.
     kd_div = tf.keras.losses.KLD
@@ -79,14 +128,17 @@ if __name__ == "__main__":
         # Iterate over the batches of the dataset.
         for x_batch_train in train_data_loader:
             # no checking on autodiff
-            teacher_logits = teacher(x_batch_train)
+            t_logits, t_act1, t_act2, t_act3 = teacher(x_batch_train)
 
             with tf.GradientTape() as tape:
-                student_logits = student(x_batch_train)
+                s_logits, s_act1, s_act2, s_act3 = student(x_batch_train)
                 kd_loss = kd_div(
-                    tf.math.softmax(teacher_logits),
-                    tf.math.softmax(student_logits))
-                loss = kd_loss + 0
+                    tf.math.softmax(t_logits),
+                    tf.math.softmax(s_logits))
+                attention_loss_sum = (attention_loss(t_act1, s_act1)
+                                     + attention_loss(t_act2, s_act2)
+                                     + attention_loss(t_act3, s_act3))
+                loss = kd_loss + beta*attention_loss_sum
 
                 grads = tape.gradient(loss, student.trainable_weights)
                 optimizer.apply_gradients(zip(grads, student.trainable_weights))
@@ -95,19 +147,4 @@ if __name__ == "__main__":
 
                 if step % 100 == 0:
                     print('step %s: mean loss = %s' % (step, loss_metric.result()))
-            step += 1
-
-
-    # # prepare logits
-
-    # # Training
-    # train_logits = []
-    # for x_batch, _ in datagen.flow(x_train, batch_size=128):
-    #     logits = teacher.predict_on_batch(x_batch)
-    #     train_logits.append(logits)
-
-    # # Validation
-    # val_logits = []
-    # for x_batch, _ in datagen.flow(x_test, batch_size=128):
-    #     logits = teacher.predict_on_batch(x_batch)
-    #     val_logits.append(logits)
+                step += 1
