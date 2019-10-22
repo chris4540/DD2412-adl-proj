@@ -64,7 +64,7 @@ class Identity(Layer):
 
 def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
                         input_shape=None, classes=10,
-                        has_softmax=True, output_attentions=False):
+                        has_softmax=True, output_activations=False):
     """
     Builder function to make wide-residual network
     """
@@ -84,7 +84,7 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
             width=width,
             dropout=dropout_rate,
             has_softmax=has_softmax,
-            output_attentions=output_attentions,
+            output_activations=output_activations,
             model_name=model_name)
 
 
@@ -157,7 +157,7 @@ def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides, dr
 
 def __create_wide_residual_network(nb_classes, img_input, depth=28,
                                    width=8, dropout=0.0, has_softmax=True,
-                                   output_attentions=False, model_name=None):
+                                   output_activations=False, model_name=None):
     ''' Creates a Wide Residual Network with specified parameters
 
     Args:
@@ -189,20 +189,20 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     # Block Group: conv2
     x = __residual_block_group(x, nChannels[0], nChannels[1],
                                count=N, strides=1, dropout=dropout)
-    att1 = x
+    act1 = x
     # att1 = Identity(name='attention1')(x)  # Identity layer
 
 
     # Block Group: conv3
     x = __residual_block_group(att1, nChannels[1], nChannels[2],
                                count=N, strides=2, dropout=dropout)
-    att2 = x
+    act2 = x
     # att2 = Identity(name='attention2')(x)  # Identity layer
 
     # Block Group: conv4
     x = __residual_block_group(att2, nChannels[2], nChannels[3],
                                count=N, strides=2, dropout=dropout)
-    att3 = x
+    act3 = x
     # att3 = Identity(name='attention3')(x)  # Identity layer
 
 
@@ -218,78 +218,14 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
         x = Softmax(axis=-1)(x)
 
     # make model as the return
-    if output_attentions:
-        ret = Model(inputs=img_input, outputs=[x, att1, att2, att3], name=model_name)
+    if output_activations:
+        ret = Model(inputs=img_input, outputs=[x, act1, act2, act3], name=model_name)
     else:
         ret = Model(inputs=img_input, outputs=x, name=model_name)
 
     return ret
 
 # ========================================================
-# # # we need this for all other KD trainings and attention calculations
-# def get_intm_outputs_of(model, input_, mode="eval"):
-#     """
-#     Given model and the input data, outputs:
-#         - the logits for KD
-#         - ctivations required for attention training
-
-#     :param model: either student or teacher model
-#     :param input: input batch of images
-#     :param mode: 'eval' if in evalution mode or 'train' if in training model
-#     :return: a dictionary of outputs
-#     Return example:
-#         {
-#             "logits": ...,
-#             "attention1": ...,
-#             "attention2": ...,
-#             "attention3": ...,
-#         }
-
-#     Reference:
-#     https://keras.io/getting-started/faq/#how-can-i-obtain-the-output-of-an-intermediate-layer
-#     """
-#     if not (mode in ["eval", "train"]):
-#         raise ValueError('You should input model either train or eval')
-
-#     output_layer_names = ['logits', 'attention1', 'attention2', 'attention3']
-
-#     # Set up input and out of the function
-#     input_layers = [model.layers[0].input]
-#     output_layers = [model.get_layer(l).output
-#                                 for l in output_layer_names]
-
-#     if mode == "train":
-#         learning_phase_flag = 1
-#     else: # eval mode
-#         learning_phase_flag = 0
-
-#     get_outputs_fn = K.function(input_layers, output_layers)
-
-#     outputs = get_outputs_fn([input_, learning_phase_flag])
-
-#     # ret = {k: outputs[i] for i, k in enumerate(output_layer_names)}
-#     ret = outputs
-#     return ret
-
-# # we need this for all other KD trainings and attention calculations
-# def get_model_outputs(model, input, mode):
-#     """
-#     given model and the input data, outputs the logits and activations required for attention training
-
-#     :param model: either student or teacher model
-#     :param input: input batch of images
-#     :param mode: 0 for test mode or 1 for train mode
-#     :return: [logits, activations of 3 main blocks]
-
-#     TODO:
-#         1. use ```get_intm_outputs_of``` instead
-#         2. Remove this when fully migrated
-#     """
-#     output_layer_names = ['logits', 'attention1', 'attention2', 'attention3']
-#     get_outputs = K.function([model.layers[0].input],
-#                              [model.get_layer(l).output for l in output_layer_names])
-
-#     return get_outputs([input, mode])
 
 if __name__ == "__main__":
     n = 16
