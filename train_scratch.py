@@ -6,6 +6,7 @@ from tensorflow.keras import utils
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau
 from net.wide_resnet import WideResidualNetwork
+import numpy as np
 
 def set_seed(seed):
     # NumPy

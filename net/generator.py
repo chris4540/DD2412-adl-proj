@@ -24,6 +24,6 @@ def generator(input_dimension=100):
     model.add(LeakyReLU())
 
     model.add(Conv2DTranspose(3, (3, 3), strides=(1, 1), padding='same'))
-    model.add(BatchNormalization())
+    #model.add(BatchNormalization())
     assert model.output_shape == (None, 32, 32, 3)
     return model

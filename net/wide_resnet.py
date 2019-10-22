@@ -288,8 +288,9 @@ def get_intm_outputs_of(model, input_, mode="eval"):
 
     outputs = get_outputs_fn([input_, learning_phase_flag])
 
-    ret = {k: outputs[i] for i, k in enumerate(output_layer_names)}
-    return ret
+    # ret = {k: outputs[i] for i, k in enumerate(output_layer_names)}
+    ret = outputs
+    return ret 
 
 # we need this for all other KD trainings and attention calculations
 def get_model_outputs(model, input, mode):
