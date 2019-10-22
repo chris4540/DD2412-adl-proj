@@ -7,30 +7,13 @@ https://www.tensorflow.org/guide/keras/custom_layers_and_models
 TODO:
     - utils like accuracy etc.
     - code refactoring
-
-Sample outputs:
-
-step 0: mean loss = tf.Tensor(2.316777, shape=(), dtype=float32)
-step 100: mean loss = tf.Tensor(1.7968416, shape=(), dtype=float32)
-step 200: mean loss = tf.Tensor(1.6433067, shape=(), dtype=float32)
-step 300: mean loss = tf.Tensor(1.5375729, shape=(), dtype=float32)
-Start of epoch 1
-step 0: mean loss = tf.Tensor(1.4717181, shape=(), dtype=float32)
-step 100: mean loss = tf.Tensor(1.4091233, shape=(), dtype=float32)
-step 200: mean loss = tf.Tensor(1.3524677, shape=(), dtype=float32)
-step 300: mean loss = tf.Tensor(1.305955, shape=(), dtype=float32)
-Start of epoch 2
-step 0: mean loss = tf.Tensor(1.266997, shape=(), dtype=float32)
-step 100: mean loss = tf.Tensor(1.2284571, shape=(), dtype=float32)
-step 200: mean loss = tf.Tensor(1.1918056, shape=(), dtype=float32)
-step 300: mean loss = tf.Tensor(1.159136, shape=(), dtype=float32)
 """
 import tensorflow as tf
 # Must run this in order to have similar behaviour as TF2.0
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from net.wide_resnet import WideResidualNetwork
 from utils import preprocess
-from utils.losses import attention_loss
+from utils.losses import student_loss_fn
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -79,18 +62,14 @@ if __name__ == "__main__":
 
         # Iterate over the batches of the dataset.
         for x_batch_train in train_data_loader:
-            # no checking on autodiff
-            t_logits, t_act1, t_act2, t_act3 = teacher(x_batch_train)
 
+            # no checking on autodiff
+            t_logits, *t_acts = teacher(x_batch_train)
+
+            # Do forwarding, watch trainable varaibles and record auto grad.
             with tf.GradientTape() as tape:
-                s_logits, s_act1, s_act2, s_act3 = student(x_batch_train)
-                kd_loss = kd_div(
-                    tf.math.softmax(t_logits),
-                    tf.math.softmax(s_logits))
-                attention_loss_sum = (attention_loss(t_act1, s_act1)
-                                     + attention_loss(t_act2, s_act2)
-                                     + attention_loss(t_act3, s_act3))
-                loss = kd_loss + beta*attention_loss_sum
+                s_logits, *s_acts = student(x_batch_train)
+                loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta)
 
                 grads = tape.gradient(loss, student.trainable_weights)
                 optimizer.apply_gradients(zip(grads, student.trainable_weights))
