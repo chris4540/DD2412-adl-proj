@@ -77,6 +77,7 @@ student_optimizer = Adam(learning_rate=CosineDecay(
                             decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
 ## Generator
 generator = NavieGenerator(input_dim=100)
+## TODO: double check the annuealing setting
 generator_optimizer = Adam(learning_rate=CosineDecay(
                             Config.generator_init_lr,
                             decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
