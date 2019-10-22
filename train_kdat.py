@@ -4,16 +4,19 @@ Ref:
 https://github.com/keras-team/keras/issues/9459#issuecomment-469282443
 https://www.tensorflow.org/guide/keras/custom_layers_and_models
 """
-
+import tensorflow as tf
+# Must run this in order to have similar result as TF2.0
+tf.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from net.wide_resnet import WideResidualNetwork
 from utils import preprocess
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Model
 
 
 def lr_schedule(epoch):
-    lr = 1e-1
+    lr = 0.05
     if epoch > 160:
         lr *= 0.008
     elif epoch > 120:
@@ -46,10 +49,65 @@ if __name__ == "__main__":
 
     teacher.fit_generator(datagen.flow(x_train, y_train, batch_size=128),
                             validation_data=(x_test, y_test),
-                            epochs=5, verbose=1,
+                            epochs=10, verbose=1,
                             callbacks=callbacks)
 
     scores = teacher.evaluate(x_test, y_test, verbose=1)
     print('Test loss:', scores[0])
     print('Test accuracy:', scores[1])
     # ====================================================================
+    # re-create a model
+    teacher = Model(teacher.input, teacher.get_layer('logits').output)
+    # now model outputs logits
+    print(teacher.summary())
+
+    teacher.trainable = False
+
+    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+    # student
+    student = WideResidualNetwork(16, 1, classes=10, input_shape=(32, 32, 3), has_softmax=False)
+    # Train student
+    # Iterate over epochs.
+    kd_div = tf.keras.losses.KLD
+    loss_metric = tf.keras.metrics.Mean()
+    train_data_loader = tf.data.Dataset.from_tensor_slices(x_train).batch(128)
+
+    for epoch in range(3):
+        step = 0
+        print('Start of epoch %d' % (epoch,))
+
+        # Iterate over the batches of the dataset.
+        for x_batch_train in train_data_loader:
+            # no checking on autodiff
+            teacher_logits = teacher(x_batch_train)
+
+            with tf.GradientTape() as tape:
+                student_logits = student(x_batch_train)
+                kd_loss = kd_div(
+                    tf.math.softmax(teacher_logits),
+                    tf.math.softmax(student_logits))
+                loss = kd_loss + 0
+
+                grads = tape.gradient(loss, student.trainable_weights)
+                optimizer.apply_gradients(zip(grads, student.trainable_weights))
+
+                loss_metric(loss)
+
+                if step % 100 == 0:
+                    print('step %s: mean loss = %s' % (step, loss_metric.result()))
+            step += 1
+
+
+    # # prepare logits
+
+    # # Training
+    # train_logits = []
+    # for x_batch, _ in datagen.flow(x_train, batch_size=128):
+    #     logits = teacher.predict_on_batch(x_batch)
+    #     train_logits.append(logits)
+
+    # # Validation
+    # val_logits = []
+    # for x_batch, _ in datagen.flow(x_test, batch_size=128):
+    #     logits = teacher.predict_on_batch(x_batch)
+    #     val_logits.append(logits)

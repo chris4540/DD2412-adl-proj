@@ -1,0 +1,102 @@
+# coding: utf-8
+%paste
+import tensorflow as tf
+tf.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
+teacher = WideResidualNetwork(40, 2, classes=10, input_shape=(32, 32, 3))
+from net.wide_resnet import WideResidualNetwork
+ls
+cd ..
+ls
+from net.wide_resnet import WideResidualNetwork
+teacher = WideResidualNetwork(40, 2, classes=10, input_shape=(32, 32, 3))
+teacher.load_weights('saved_models/cifar10_WRN-40-2_model.068.h5')
+x_train, y_train, x_test, y_test = preprocess.get_cifar_data()
+from utils import preprocess
+x_train, y_train, x_test, y_test = preprocess.get_cifar_data()
+    scores = teacher.evaluate(x_test, y_test, verbose=1)
+    print('Test loss:', scores[0])
+    print('Test accuracy:', scores[1])
+teacher.compile(metrics=['accuracy'])
+    optim = SGD(learning_rate=lr_schedule(0), momentum=0.9, decay=0.0005)
+    teacher.compile(loss='categorical_crossentropy',
+                      optimizer=optim,
+                      metrics=['accuracy'])
+    optim = SGD(learning_rate=lr_schedule(0), momentum=0.9, decay=0.0005)
+    teacher.compile(loss='categorical_crossentropy',
+                      optimizer='sgd',
+                      metrics=['accuracy'])
+  
+
+    teacher.compile(loss='categorical_crossentropy',
+                      optimizer='sgd',               
+                        metrics=['accuracy'])
+scores = teacher.evaluate(x_test, y_test, verbose=1)
+    print('Test loss:', scores[0])
+    print('Test accuracy:', scores[1])
+teacher = Model(teacher.input, teacher.get_layer('logits').output)
+from tensorflow.keras.models import Model
+teacher = Model(teacher.input, teacher.get_layer('logits').output)
+teacher.trainable = False
+optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+student = WideResidualNetwork(16, 1, classes=10, input_shape=(32, 32, 3), has_softmax=False)
+    kd_div = tf.keras.losses.KLD
+    loss_metric = tf.keras.metrics.Mean()
+    for epoch in range(3):
+        step = 0
+        print('Start of epoch %d' % (epoch,))
+
+        # Iterate over the batches of the dataset.
+        for x_batch_train in datagen.flow(x_train, batch_size=128):
+            # no checking on autodiff
+            teacher_logits = teacher(x_batch_train)
+
+            with tf.GradientTape() as tape:
+                student_logits = student(x_batch_train)
+                kd_loss = kd_div(teacher_logits, student_logits)
+                loss = kd_loss + 0
+
+                grads = tape.gradient(loss, student.trainable_weights)
+                optimizer.apply_gradients(zip(grads, student.trainable_weights))
+
+                loss_metric(loss)
+
+                if step % 100 == 0:
+                    print('step %s: mean loss = %s' % (step, loss_metric.result()))
+            step += 1
+        
+datagen = ImageDataGenerator()
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+datagen = ImageDataGenerator()
+for x_batch_train in datagen.flow(x_train, batch_size=128):
+    print(x_batch_train.shape)
+    break
+    
+%paste
+    for epoch in range(3):
+        step = 0
+        print('Start of epoch %d' % (epoch,))
+
+        # Iterate over the batches of the dataset.
+        for x_batch_train in datagen.flow(x_train, batch_size=128):
+            # no checking on autodiff
+            teacher_logits = teacher(x_batch_train)
+
+            with tf.GradientTape() as tape:
+                student_logits = student(x_batch_train)
+                kd_loss = kd_div(teacher_logits, student_logits)
+                loss = kd_loss + 0
+
+                grads = tape.gradient(loss, student.trainable_weights)
+                optimizer.apply_gradients(zip(grads, student.trainable_weights))
+
+                loss_metric(loss)
+
+                if step % 100 == 0:
+                    print('step %s: mean loss = %s' % (step, loss_metric.result()))
+            step += 1
+        
+cnt = 0
+for x_batch_train in datagen.flow(x_train, batch_size=128):
+    cnt += 1
+    
+save -r mysession 1-999999
