@@ -41,7 +41,7 @@ gen_loss_metric = tf.keras.metrics.Mean()
 stu_loss_metric = tf.keras.metrics.Mean()
 
 def cosine_lr_schedule(epoch, T_max, eta_max, eta_min=0):
-    lr = eta_min + (eta_max - eta_min) * (1 + math.cos(math.pi * epoch / T_max)) / 2
+    lr = eta_min + (eta_max - eta_min) * (1 + np.cos(np.pi * epoch / T_max)) / 2
     return lr
 
 for total_batches in range(total_n_pseudo_batches):
