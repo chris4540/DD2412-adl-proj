@@ -1,51 +1,68 @@
-0. Check default project
+- Check default project
 ```bash
 gcloud config get-value project
 ```
 
-1. List projects
+- List projects
 ```bash
 gcloud projects list
 ```
 
-1. Change default project
+- Change default project
 ```bash
 gcloud config set project <PROJECT ID>
 ```
 
-1. List instances
+- List instances
 ```bash
 gcloud compute instances list
 ```
 
-2. describle instance
+- describle instance
 ```bash
 gcloud compute instances describe tf-dd2412-proj-exp-p100 --format="(scheduling.preemptible)" --zone=europe-west1-b
 ```
 
-3. delete instance
+- delete instance
 ```bash
 gcloud compute instances delete tf-dd2412-proj-exp-p100 --zone=europe-west1-b
 ```
 
-4. List deep learning realted img.
+- List deep learning realted img.
 ```bash
 gcloud compute images list --project deeplearning-platform-release
 #
 gcloud compute images list --project deeplearning-platform-release --no-standard-images
 ```
 
-5. Start instance
+- Start instance
 ```bash
 gcloud compute instances start <vm-name>
 ```
 
-6. Stop instance
+- Stop instance
 ```bash
 gcloud compute instances stop <vm-name>
 ```
 
-7. SSH
+- SSH
 ```bash
 gcloud compute ssh --zone=<zone> <vm-name>
+```
+-------------------------------------------------------------------
+## Copying to google cloud storage
+
+- List the bluckets
+```bash
+gsutil ls
+```
+
+- Rsync directory
+```bash
+gsutil rsync -d -r data gs://mybucket/data
+```
+
+- Rsync file
+```bash
+gsutil rsync  data gs://mybucket/data
 ```
