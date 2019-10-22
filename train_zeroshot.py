@@ -8,6 +8,7 @@ from utils.losses import kd_loss
 from utils.losses import student_loss_fn
 from tensorflow.keras.optimizers import Adam
 from net.wide_resnet import WideResidualNetwork
+from tensorflow.keras.experimental import CosineDecay
 import numpy as np
 
 # TODO: use Config class
@@ -28,22 +29,16 @@ teacher.load_weights('saved_models/cifar10_WRN-40-2_model.h5')
 teacher.trainable = False
 
 student = WideResidualNetwork(16, 1, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)
-student_optimizer = Adam(learning_rate=student_lr)
-# student_scheduler = CosineAnnealingScheduler(T_max=number_of_batches, eta_max=student_lr, eta_min=0)
+student_optimizer = Adam(learning_rate=CosineDecay(student_lr, number_of_batches))
 
 generator = NavieGenerator(input_dim=100)
-generator_optimizer = Adam(learning_rate=generator_lr)
-# generator_scheduler = CosineAnnealingScheduler(T_max=number_of_batches, eta_max=generator_lr, eta_min=0)
+generator_optimizer = Adam(learning_rate=CosineDecay(generator_lr, number_of_batches))
 
 # Generator loss metrics
 g_loss_met = tf.keras.metrics.Mean()
 # Student loss metrics
 stu_loss_met = tf.keras.metrics.Mean()
 
-
-def cosine_lr_schedule(epoch, T_max, eta_max, eta_min=0):
-    lr = eta_min + (eta_max - eta_min) * (1 + np.cos(np.pi * epoch / T_max)) / 2
-    return lr
 
 for total_batches in range(total_n_pseudo_batches):
     # sample from latern space to make an image
@@ -64,9 +59,6 @@ for total_batches in range(total_n_pseudo_batches):
 
         # The grad for generator
         grads = tape.gradient(loss, generator.trainable_weights)
-
-        # cosine annealing for learning rate
-        generator_optimizer.learning_rate = cosine_lr_schedule(total_batches, total_n_pseudo_batches, generator_lr)
 
         # update the generator paramter with the gradient
         generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
@@ -90,8 +82,7 @@ for total_batches in range(total_n_pseudo_batches):
         # The grad for student
         grads = tape.gradient(loss, student.trainable_weights)
 
-        # Update learning rate
-        student_optimizer.learning_rate = cosine_lr_schedule(total_batches, total_n_pseudo_batches, student_lr)
+        # Apply grad for student
         student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
 
         stu_loss_met(loss)
