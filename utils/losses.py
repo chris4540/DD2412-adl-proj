@@ -7,7 +7,7 @@ def kd_loss(teacher_logits, student_logits):
 
 def f_act(activations):
 	temp1 = np.mean(np.power(activations,2), axis=-1)
-	temp2 = temp1.reshape((x.shape[0],-1))
+	temp2 = temp1.reshape((temp1.shape[0],-1))
 	return normalize(temp2)
 
 def attention_loss(teacher_activations, student_activations):
@@ -19,13 +19,13 @@ def generator_loss(teacher_logits, student_logits):
 	return kd_loss(teacher_logits, student_logits)
 
 def student_loss(teacher_logits, teacher_activations, student_logits, student_activations, attn_beta):
-	kd_loss = kd_loss(teacher_logits, student_logits)
+	kld_loss = kd_loss(teacher_logits, student_logits)
 
 	attn_loss = 0
 	for i in range(len(teacher_activations)):
-		attn_loss += attention_loss(teacher_activations, student_activations)
+		attn_loss += attention_loss(teacher_activations[i], student_activations[i])
 
-	total_loss = kd_loss + attn_beta*attn_loss
+	total_loss = kld_loss + attn_beta*attn_loss
 	return total_loss
 
 
