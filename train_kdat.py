@@ -5,10 +5,28 @@ https://github.com/keras-team/keras/issues/9459#issuecomment-469282443
 https://www.tensorflow.org/guide/keras/custom_layers_and_models
 
 TODO:
-    utils like accuracy etc.
+    - utils like accuracy etc.
+    - code refactoring
+
+Sample outputs:
+
+step 0: mean loss = tf.Tensor(2.316777, shape=(), dtype=float32)
+step 100: mean loss = tf.Tensor(1.7968416, shape=(), dtype=float32)
+step 200: mean loss = tf.Tensor(1.6433067, shape=(), dtype=float32)
+step 300: mean loss = tf.Tensor(1.5375729, shape=(), dtype=float32)
+Start of epoch 1
+step 0: mean loss = tf.Tensor(1.4717181, shape=(), dtype=float32)
+step 100: mean loss = tf.Tensor(1.4091233, shape=(), dtype=float32)
+step 200: mean loss = tf.Tensor(1.3524677, shape=(), dtype=float32)
+step 300: mean loss = tf.Tensor(1.305955, shape=(), dtype=float32)
+Start of epoch 2
+step 0: mean loss = tf.Tensor(1.266997, shape=(), dtype=float32)
+step 100: mean loss = tf.Tensor(1.2284571, shape=(), dtype=float32)
+step 200: mean loss = tf.Tensor(1.1918056, shape=(), dtype=float32)
+step 300: mean loss = tf.Tensor(1.159136, shape=(), dtype=float32)
 """
 import tensorflow as tf
-# Must run this in order to have similar result as TF2.0
+# Must run this in order to have similar behaviour as TF2.0
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from net.wide_resnet import WideResidualNetwork
 from utils import preprocess
