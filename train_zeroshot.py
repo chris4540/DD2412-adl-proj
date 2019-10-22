@@ -2,7 +2,8 @@ import tensorflow as tf
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from net.generator import NavieGenerator
 from utils.cosine_anealing import CosineAnnealingScheduler
-from utils.losses import *
+from utils.losses import kd_loss
+from utils.losses import student_loss
 from tensorflow.keras.optimizers import Adam
 from net.wide_resnet import WideResidualNetwork
 # from train_scratch import *
@@ -27,16 +28,12 @@ teacher_model = WideResidualNetwork(40, 2, input_shape=(32, 32, 3), dropout_rate
 teacher_model.load_weights('saved_models/cifar10_WRN-40-2_model.h5')
 
 student_model = WideResidualNetwork(16, 1, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)
-student_optimizer=Adam(learning_rate=student_lr)
-student_scheduler = CosineAnnealingScheduler(T_max=number_of_batches, eta_max=student_lr, eta_min=0)
+student_optimizer = Adam(learning_rate=student_lr)
+# student_scheduler = CosineAnnealingScheduler(T_max=number_of_batches, eta_max=student_lr, eta_min=0)
 
 generator_model = NavieGenerator(input_dim=100)
-generator_optimizer=Adam(learning_rate=generator_lr)
-generator_scheduler = CosineAnnealingScheduler(T_max=number_of_batches, eta_max=generator_lr, eta_min=0)
-
-student_model.trainable = True
-teacher_model.trainable = False
-generator_model.trainable = True
+generator_optimizer = Adam(learning_rate=generator_lr)
+# generator_scheduler = CosineAnnealingScheduler(T_max=number_of_batches, eta_max=generator_lr, eta_min=0)
 
 gen_loss_metric = tf.keras.metrics.Mean()
 stu_loss_metric = tf.keras.metrics.Mean()
@@ -45,11 +42,15 @@ def cosine_lr_schedule(epoch, T_max, eta_max, eta_min=0):
     lr = eta_min + (eta_max - eta_min) * (1 + np.cos(np.pi * epoch / T_max)) / 2
     return lr
 
+teacher_model.trainable = False
+
 for total_batches in range(total_n_pseudo_batches):
     # sample from latern space to make an image
     z = tf.random.normal([batch_size, z_dim])
 
     # Generator training
+    generator_model.trainable = True
+    student_model.trainable = False
     for ng in range(ng_batches):
         with tf.GradientTape() as gtape:
             pseudo_images = generator_model(z)
@@ -71,10 +72,13 @@ for total_batches in range(total_n_pseudo_batches):
             print('step %s: generator mean loss = %s' % (total_batches, gen_loss_metric.result()))
 
     # Student training
+    generator_model.trainable = False
+    student_model.trainable = True
     for ns in range(ns_batches):
+
+        teacher_logits, *teacher_activations = teacher_model(pseudo_images)
         with tf.GradientTape() as stape:
-            pseudo_images = generator_model(z)
-            teacher_logits, *teacher_activations = teacher_model(pseudo_images)
+            # pseudo_images = generator_model(z)
             student_logits, *student_activations = student_model(pseudo_images)
             std_loss = student_loss(teacher_logits, teacher_activations,
                                 student_logits, student_activations, attn_beta)
