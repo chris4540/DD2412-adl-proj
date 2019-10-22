@@ -3,6 +3,9 @@
 Ref:
 https://github.com/keras-team/keras/issues/9459#issuecomment-469282443
 https://www.tensorflow.org/guide/keras/custom_layers_and_models
+
+TODO:
+    utils like accuracy etc.
 """
 import tensorflow as tf
 # Must run this in order to have similar result as TF2.0
@@ -86,39 +89,14 @@ def attention_loss(act1, act2):
 # main
 if __name__ == "__main__":
     beta = 250
-    # # =======================================================================
-    # teacher = WideResidualNetwork(40, 2, classes=10, input_shape=(32, 32, 3))
 
     x_train, y_train, x_test, y_test = preprocess.get_cifar_data()
-    # # compile model
-    # optim = SGD(learning_rate=lr_schedule(0), momentum=0.9, decay=0.0005)
-    # teacher.compile(loss='categorical_crossentropy',
-    #                   optimizer=optim,
-    #                   metrics=['accuracy'])
 
-    # lr_scheduler = LearningRateScheduler(lr_schedule)
-
-    # callbacks = [lr_scheduler]
-
-    # use the plain generator
-    # datagen = ImageDataGenerator()
-
-    # datagen.fit(x_train)
-
-    # teacher.fit_generator(datagen.flow(x_train, y_train, batch_size=128),
-    #                         validation_data=(x_test, y_test),
-    #                         epochs=10, verbose=1,
-    #                         callbacks=callbacks)
-
-    # scores = teacher.evaluate(x_test, y_test, verbose=1)
-    # print('Test loss:', scores[0])
-    # print('Test accuracy:', scores[1])
-    # # ====================================================================
-    # # re-create a model
-    # teacher = Model(teacher.input, teacher.get_layer('logits').output)
     teacher = WideResidualNetwork(
         40, 2, classes=10, input_shape=(32, 32, 3),
         has_softmax=False, output_activations=True)
+
+    # load from the hdf5 file. Use train_scratch to train it
     teacher.load_weights('saved_models/cifar10_WRN-40-2_model.h5')
 
     teacher.trainable = False
