@@ -63,11 +63,23 @@ def attention_loss(act1, act2):
     Return:
         a floating point number representing the loss. As we use tensorflow,
         the floating point number would be a number hold in tf.Tensor
+
+    TODO:
+        check their implementation and code consistency
+
+    Ref:
+    https://github.com/szagoruyko/attention-transfer/blob/893df5488f93691799f082a70e2521a9dc2ddf2d/utils.py#L22
     """
     # get the activation map first
     act_map_1 = spatial_attention_map(act1)
     act_map_2 = spatial_attention_map(act2)
-    ret = tf.norm(act_map_2 - act_map_1, axis=-1)
+
+    # This is the author written in the paper
+    # ret = tf.norm(act_map_2 - act_map_1, axis=-1)
+
+    # This is the implementatin they have
+    out = tf.pow(act_map_1 - act_map_2, 2)
+    ret = tf.reduce_mean(out, axis=-1)
     return ret
 
 # ============================================================================
