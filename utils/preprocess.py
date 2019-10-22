@@ -14,3 +14,5 @@ def get_cifar_data():
     y_train = keras.utils.to_categorical(y_train)
     y_test = keras.utils.to_categorical(y_test)
     return x_train, y_train, x_test, y_test
+
+ 

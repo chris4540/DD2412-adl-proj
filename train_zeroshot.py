@@ -17,12 +17,11 @@ batch_size = 128
 ng_batches = 1
 ns_batches = 10
 attn_beta = 250
-total_n_pseudo_batches = 20
+total_n_pseudo_batches = 3
 n_generator_items = ng_batches + ns_batches
-total_batches = 0
 student_lr = 2e-3
 generator_lr = 1e-3
-number_of_batches = 10
+number_of_batches = 3
 
 teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)
 teacher.load_weights('saved_models/cifar10_WRN-40-2_model.h5')
@@ -65,8 +64,7 @@ for total_batches in range(total_n_pseudo_batches):
 
         g_loss_met(loss)
 
-        if total_batches % 2 == 0:
-            print('step %s: generator mean loss = %s' % (total_batches, g_loss_met.result()))
+        print('step %s: generator mean loss = %s' % (total_batches, g_loss_met.result()))
     # ==========================================================================
 
     # Student training
@@ -77,7 +75,7 @@ for total_batches in range(total_n_pseudo_batches):
         t_logits, *t_acts = teacher(pseudo_imgs)
         with tf.GradientTape() as tape:
             s_logits, *s_acts = student(pseudo_imgs)
-            loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, attn_beta)
+            loss = student_loss_fn(tf.math.softmax(t_logits), t_acts, tf.math.softmax(s_logits), s_acts, attn_beta)
 
         # The grad for student
         grads = tape.gradient(loss, student.trainable_weights)
@@ -87,5 +85,4 @@ for total_batches in range(total_n_pseudo_batches):
 
         stu_loss_met(loss)
 
-        if total_batches % 2 == 0:
-            print('step %s: studnt mean loss = %s' % (total_batches, stu_loss_met.result()))
+        print('step %s-%s: studnt mean loss = %s' % (total_batches, ns, stu_loss_met.result()))
