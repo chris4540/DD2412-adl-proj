@@ -63,63 +63,32 @@ class Identity(Layer):
         return input_shape
 
 def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
-                        input_shape=None,
-                        classes=10, has_softmax=True):
-    """Instantiate the Wide Residual Network architecture,
-        optionally loading weights pre-trained
-        on CIFAR-10. Note that when using TensorFlow,
-        for best performance you should set
-        `image_dim_ordering="tf"` in your Keras config
-        at ~/.keras/keras.json.
-
-        The model and the weights are compatible with both
-        TensorFlow and Theano. The dimension ordering
-        convention used by the model is the one
-        specified in your Keras config file.
-
-        # Arguments
-            depth: number or layers in the DenseNet
-            width: multiplier to the ResNet width (number of filters)
-            dropout_rate: dropout rate
-            include_top: whether to include the fully-connected
-                layer at the top of the network.
-            weights: one of `None` (random initialization) or
-                "cifar10" (pre-training on CIFAR-10)..
-            input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
-                to use as image input for the model.
-            input_shape: optional shape tuple, only to be specified
-                if `include_top` is False (otherwise the input shape
-                has to be `(32, 32, 3)` (with `tf` dim ordering)
-                or `(3, 32, 32)` (with `th` dim ordering).
-                It should have exactly 3 inputs channels,
-                and width and height should be no smaller than 8.
-                E.g. `(200, 200, 3)` would be one valid value.
-            classes: optional number of classes to classify images
-                into, only to be specified if `include_top` is True, and
-                if no `weights` argument is specified.
-
-        # Returns
-            A Keras model instance.
-        """
+                        input_shape=None, classes=10,
+                        has_softmax=True, output_activations=False):
+    """
+    Builder function to make wide-residual network
+    """
 
     if (depth - 4) % 6 != 0:
         raise ValueError('Depth of the network must be such that (depth - 4)'
                          'should be divisible by 6.')
 
+    # make model name
+    model_name = 'wide-resnet-{}-{}'.format(depth, width)
+
 
     img_input = Input(shape=input_shape)
 
-    x = __create_wide_residual_network(classes, img_input,
+    ret = __create_wide_residual_network(classes, img_input,
             depth=depth,
             width=width,
             dropout=dropout_rate,
-            has_softmax=has_softmax)
-    #
-    inputs = img_input
-    # Create model.
-    model = Model(inputs, x, name='wide-resnet')
+            has_softmax=has_softmax,
+            output_activations=output_activations,
+            model_name=model_name)
 
-    return model
+
+    return ret
 
 def __conv1_block(input_):
     """
@@ -187,12 +156,13 @@ def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides, dr
 
 
 def __create_wide_residual_network(nb_classes, img_input, depth=28,
-                                   width=8, dropout=0.0, has_softmax=True):
+                                   width=8, dropout=0.0, has_softmax=True,
+                                   output_activations=False, model_name=None):
     ''' Creates a Wide Residual Network with specified parameters
 
     Args:
         nb_classes: Number of output classes
-        img_input: Input tensor or layer
+        img_input: Input layer
         depth: Depth of the network. Compute N = (n - 4) / 6.
                For a depth of 16, n = 16, N = (16 - 4) / 6 = 2
                For a depth of 28, n = 28, N = (28 - 4) / 6 = 4
@@ -210,7 +180,6 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
             2. 1 conv in each group for upsample / downsample in shortcut
                Each group has exactly one conv1x1 as shortcut size tunning
     '''
-
     N = (depth - 4) // 6
 
     x = __conv1_block(img_input)
@@ -220,18 +189,21 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     # Block Group: conv2
     x = __residual_block_group(x, nChannels[0], nChannels[1],
                                count=N, strides=1, dropout=dropout)
-    x = Identity(name='attention1')(x)  # Identity layer
+    act1 = x
+    # att1 = Identity(name='attention1')(x)  # Identity layer
 
 
     # Block Group: conv3
     x = __residual_block_group(x, nChannels[1], nChannels[2],
                                count=N, strides=2, dropout=dropout)
-    x = Identity(name='attention2')(x)  # Identity layer
+    act2 = x
+    # att2 = Identity(name='attention2')(x)  # Identity layer
 
     # Block Group: conv4
     x = __residual_block_group(x, nChannels[2], nChannels[3],
                                count=N, strides=2, dropout=dropout)
-    x = Identity(name='attention3')(x)  # Identity layer
+    act3 = x
+    # att3 = Identity(name='attention3')(x)  # Identity layer
 
 
     # Avg pooling + fully connected layer
@@ -245,79 +217,25 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     if has_softmax:
         x = Softmax(axis=-1)(x)
 
-    return x
+    # make model as the return
+    if output_activations:
+        ret = Model(inputs=img_input, outputs=[x, act1, act2, act3], name=model_name)
+    else:
+        ret = Model(inputs=img_input, outputs=x, name=model_name)
+
+    return ret
 
 # ========================================================
-# # we need this for all other KD trainings and attention calculations
-def get_intm_outputs_of(model, input_, mode="eval"):
-    """
-    Given model and the input data, outputs:
-        - the logits for KD
-        - ctivations required for attention training
-
-    :param model: either student or teacher model
-    :param input: input batch of images
-    :param mode: 'eval' if in evalution mode or 'train' if in training model
-    :return: a dictionary of outputs
-    Return example:
-        {
-            "logits": ...,
-            "attention1": ...,
-            "attention2": ...,
-            "attention3": ...,
-        }
-
-    Reference:
-    https://keras.io/getting-started/faq/#how-can-i-obtain-the-output-of-an-intermediate-layer
-    """
-    if not (mode in ["eval", "train"]):
-        raise ValueError('You should input model either train or eval')
-
-    output_layer_names = ['logits', 'attention1', 'attention2', 'attention3']
-
-    # Set up input and out of the function
-    input_layers = [model.layers[0].input]
-    output_layers = [model.get_layer(l).output
-                                for l in output_layer_names]
-
-    if mode == "train":
-        learning_phase_flag = 1
-    else: # eval mode
-        learning_phase_flag = 0
-
-    get_outputs_fn = K.function(input_layers, output_layers)
-
-    outputs = get_outputs_fn([input_, learning_phase_flag])
-
-    # ret = {k: outputs[i] for i, k in enumerate(output_layer_names)}
-    ret = outputs
-    return ret 
-
-# we need this for all other KD trainings and attention calculations
-def get_model_outputs(model, input, mode):
-    """
-    given model and the input data, outputs the logits and activations required for attention training
-
-    :param model: either student or teacher model
-    :param input: input batch of images
-    :param mode: 0 for test mode or 1 for train mode
-    :return: [logits, activations of 3 main blocks]
-
-    TODO:
-        1. use ```get_intm_outputs_of``` instead
-        2. Remove this when fully migrated
-    """
-    output_layer_names = ['logits', 'attention1', 'attention2', 'attention3']
-    get_outputs = K.function([model.layers[0].input],
-                             [model.get_layer(l).output for l in output_layer_names])
-
-    return get_outputs([input, mode])
 
 if __name__ == "__main__":
     n = 16
     k = 2
     model = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0)
-    model.summary()
-    from tensorflow.keras.utils import plot_model
-    plt_name = "new-WRN-{}-{}.pdf".format(n, k)
-    plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
+    # model.summary()
+    model.save_weights('test.h5')
+
+    model2 = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0, output_attentions=True)
+    model.load_weights('test.h5')
+    # from tensorflow.keras.utils import plot_model
+    # plt_name = "new-WRN-{}-{}.pdf".format(n, k)
+    # plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
