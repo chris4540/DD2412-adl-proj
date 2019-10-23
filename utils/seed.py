@@ -1,6 +1,6 @@
 import numpy as np
 import random
-# import tensorflow as tf
+import tensorflow as tf
 
 def set_seed(seed):
     # NumPy
@@ -10,4 +10,4 @@ def set_seed(seed):
     random.seed(seed)
 
     # Tensorflow
-    # tf.set_random_seed(seed)
+    tf.set_random_seed(seed)

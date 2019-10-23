@@ -7,7 +7,6 @@ import numpy as np
 
 def standardize_data(data):
     ret = data.astype('float32') / 255.0
-    #ret = (ret - ret.mean(axis=0)) / (ret.std(axis=0))
     return ret
 
 def load_cifar10_data():
@@ -15,6 +14,14 @@ def load_cifar10_data():
 
     x_train = standardize_data(x_train)
     x_test = standardize_data(x_test)
+
+    # normalized with train mean and std
+    x_train_mean = x_train.mean(axis=0)
+    x_train_std = x_train.std(axis=0)
+
+    # normalize
+    x_train = (x_train - x_train_mean) / x_train_std
+    x_test = (x_test - x_train_mean) / x_train_std
 
     return (x_train, y_train), (x_test, y_test)
 
