@@ -103,7 +103,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     # Set up model name and path
     model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
     model_filepath = os.path.join(save_dir, model_name)
-    log_filepath = os.path.join(save_dir, 'log.txt')
+    log_filepath = os.path.join(save_dir, 'log.csv')
 
     # Prepare callbacks for model saving and for learning rate adjustment.
     lr_scheduler = LearningRateScheduler(lr_schedule)
@@ -146,10 +146,11 @@ def get_arg_parser():
     parser.add_argument('-d', '--depth', type=int, required=True)
     parser.add_argument('--savedir', type=str, default='savedir')
     parser.add_argument('--dataset', type=str, default='cifar10')
+    parser.add_argument('--seed', type=int, default=10)
     return parser
 
 
 if __name__ == '__main__':
     parser = get_arg_parser()
     args = parser.parse_args()
-    train(args.depth, args.width)
+    train(args.depth, args.width, args.seed, savedir=args.savedir)
