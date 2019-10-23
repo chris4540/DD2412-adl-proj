@@ -32,23 +32,13 @@ def lr_schedule(epoch):
     print('Learning rate: ', lr)
     return lr
 
-def random_pad_crop(img):
-    """
-    How about
-    tf.image.random_crop
-    """
-    pad=4
-    paddings = ([pad,pad], [pad,pad], [0,0])
-    img = np.pad(img, paddings, 'reflect')
-    # Note: image_data_format is 'channel_last'
-    assert img.shape[2] == 3
-    height, width = img.shape[0], img.shape[1]
-    dy, dx = 32, 32
-    x = np.random.randint(0, width - dx + 1)
-    y = np.random.randint(0, height - dy + 1)
-    copped_image = img[y:(y+dy), x:(x+dx), :]
-    #print(copped_image.shape)
-    return copped_image
+def random_pad_crop(img, pad_size=4):
+    img_org_size = img.shape()
+    paddings = ([pad_size,pad_size], [pad_size,pad_size], [0,0])
+    img = tf.pad(img, paddings, 'REFLECT')
+
+    ret = tf.image.random_crop(img, size=img_org_size)
+    return ret
 
 class Config:
     """
