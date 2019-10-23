@@ -114,12 +114,8 @@ for iter_ in range(Config.n_outer_loop):
 
         g_loss_met(loss)
 
-<<<<<<< HEAD
-        print('step %s: generator mean loss = %s' % (total_batches, g_loss_met.result()))
-=======
         if iter_ % 2 == 0:
             print('step %s: generator mean loss = %s' % (iter_, g_loss_met.result()))
->>>>>>> Bug fix
     # ==========================================================================
 
     # Student training
@@ -130,11 +126,7 @@ for iter_ in range(Config.n_outer_loop):
         t_logits, *t_acts = teacher(pseudo_imgs)
         with tf.GradientTape() as tape:
             s_logits, *s_acts = student(pseudo_imgs)
-<<<<<<< HEAD
-            loss = student_loss_fn(tf.math.softmax(t_logits), t_acts, tf.math.softmax(s_logits), s_acts, attn_beta)
-=======
             loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
->>>>>>> Bug fix
 
         # The grad for student
         grads = tape.gradient(loss, student.trainable_weights)
@@ -144,9 +136,5 @@ for iter_ in range(Config.n_outer_loop):
 
         stu_loss_met(loss)
 
-<<<<<<< HEAD
-        print('step %s-%s: studnt mean loss = %s' % (total_batches, ns, stu_loss_met.result()))
-=======
         if iter_ % 2 == 0:
             print('step %s: studnt mean loss = %s' % (iter_, stu_loss_met.result()))
->>>>>>> Bug fix

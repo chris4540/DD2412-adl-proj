@@ -13,13 +13,6 @@ def standardize_data(data):
 def load_cifar10_data():
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
 
-<<<<<<< HEAD
-    y_train = keras.utils.to_categorical(y_train)
-    y_test = keras.utils.to_categorical(y_test)
-    return x_train, y_train, x_test, y_test
-
- 
-=======
     x_train = standardize_data(x_train)
     x_test = standardize_data(x_test)
 
@@ -90,4 +83,3 @@ def to_categorical(labels):
 #     y_train = utils.to_categorical(y_train)
 #     y_test = utils.to_categorical(y_test)
 #     return x_train, y_train, x_test, y_test
->>>>>>> Add balance_smapling
