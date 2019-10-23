@@ -27,7 +27,7 @@ class Config:
     Static config
     """
     batch_size = 128
-    epochs = 200
+    epochs = 204
     momentum = 0.9
     weight_decay = 5e-4
 
@@ -145,10 +145,10 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--width', type=int, required=True)
-    parser.add_argument('--depth', type=int, required=True)
-    parser.add_argument('--savedir', type=int, default='savedir')
-    parser.add_argument('--dataset', type=int, default='cifar10')
+    parser.add_argument('-w', '--width', type=int, required=True)
+    parser.add_argument('-d', '--depth', type=int, required=True)
+    parser.add_argument('--savedir', type=str, default='savedir')
+    parser.add_argument('--dataset', type=str, default='cifar10')
     return parser
 
 
