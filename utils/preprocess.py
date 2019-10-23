@@ -8,9 +8,6 @@ import numpy as np
 def standardize_data(data):
     ret = data.astype('float32') / 255.0
     return ret
-    # mean =
-    # ret = (ret - ret.mean(axis=0)) / (ret.std(axis=0))
-    # return ret
 
 def load_cifar10_data():
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
