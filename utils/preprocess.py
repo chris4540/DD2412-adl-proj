@@ -7,6 +7,7 @@ import numpy as np
 
 def standardize_data(data):
     ret = data.astype('float32') / 255.0
+    return ret
     # mean =
     # ret = (ret - ret.mean(axis=0)) / (ret.std(axis=0))
     # return ret
