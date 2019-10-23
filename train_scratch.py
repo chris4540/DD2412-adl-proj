@@ -1,5 +1,8 @@
 """
-TO DO: 
+Run:
+$ python3 train_scratch.py 40 2
+
+TODO:
     1. Fix seeds
     2. Consider upgrading randomCrop (v2.0)
 """
@@ -61,7 +64,7 @@ def random_pad_crop(img):
     copped_image = img[y:(y+dy), x:(x+dx), :]
     #print(copped_image.shape)
     return copped_image
-    
+
 def train(depth=16, width=1):
     print(depth, width)
     # seed = 42
