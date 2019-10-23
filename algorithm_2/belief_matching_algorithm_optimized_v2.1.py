@@ -108,6 +108,6 @@ if __name__ == '__main__':
 
     m_s, m_t = get_student_teacher_models() if len(sys.argv)==1 else get_student_teacher_models(int(sys.argv[1]), int(sys.argv[2]))
     
-    create_transition_curves(match_beliefs(get_cifar10_test()[:30], m_s, m_t))
+    create_transition_curves(match_beliefs(get_cifar10_test(), m_s, m_t))
 
     exit(0)
