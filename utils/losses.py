@@ -16,6 +16,17 @@ def kd_loss(p_true, p_pred):
     """
     return KLDivergence()(p_true, p_pred)
 
+def generator_loss_fn(t_logits, s_logits, temp=1):
+
+	loss = kd_loss(
+            tf.math.softmax(t_logits / temp) ,
+            tf.math.softmax(s_logits / temp))
+
+	g_loss = -loss
+
+	return gloss
+
+
 def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
     """
     The student loss function used in
@@ -35,7 +46,7 @@ def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
     Return:
         loss
     """
-    loss = KLDivergence()(
+    loss = kd_loss(
             tf.math.softmax(t_logits / temp) ,
             tf.math.softmax(s_logits / temp))
 
