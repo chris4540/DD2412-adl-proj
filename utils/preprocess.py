@@ -25,23 +25,29 @@ def load_cifar10_data():
 
     return (x_train, y_train), (x_test, y_test)
 
-def balance_smapling(data, lables_, data_per_class=200):
+def balance_sampling(data, lables_, data_per_class=200):
 
-    n_data = data.shape[0]
-
-    lables = lables_.reshape(-1)
+    # eps value to increase a bit of acceptance prob
     eps = 1e-4
 
+    # Checking the shape of input
+    n_data = data.shape[0]
+    assert n_data == lables_.shape[0]
+
+    lables = lables_.reshape(-1)
     cls_labels = np.unique(lables)
     nclasses = len(cls_labels)
+
+    if nclasses*data_per_class > n_data:
+        raise ValueError("Unable to sample data, the data per class is too large")
+
     # build a quota of classes first
     qouta_table = {i: data_per_class for i in cls_labels}
 
     # acceptance prob.
-    p = 1.0 / nclasses + eps
+    p = (1.0 + eps) / nclasses
 
     selected_sample = []
-    n_ops = 0
     # loop over training data
     for i, label in enumerate(lables):
         if np.random.choice([True, False], p=[p, 1-p]):
@@ -50,6 +56,7 @@ def balance_smapling(data, lables_, data_per_class=200):
                 selected_sample.append(i)
                 qouta_table[label] -= 1
 
+                # remove the label from qouta table if goes to zero
                 if qouta_table[label] == 0:
                     qouta_table.pop(label, None)
 
@@ -61,8 +68,6 @@ def balance_smapling(data, lables_, data_per_class=200):
     sample_lables = lables_[selected_sample, :]
 
     return sample_data, sample_lables
-
-
 
 def to_categorical(labels):
     """
