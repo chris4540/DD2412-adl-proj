@@ -11,7 +11,7 @@ This is the course DD2412 final project aiming for reproduce
 - [Bonus point] Successful reimplementation in another deep learning framework.
 
 ## Method implemented
-- [x] Reimplement WRN from lua version  
+- [x] Reimplement WRN 
 - [ ] Toy model Experiment. (Figure 1)  
 - [x] Zero-shot transfer with adversarial training method  
 - [x] Knowledge distillation and attention transfer (KD only has soft target)  
@@ -42,7 +42,19 @@ Google cloud VM
 image-name: tf-1-14-cu100-20191004
 image-family: tf-1-14-cu100
 image-project: deeplearning-platform-release
+accelerator: type=nvidia-tesla-p100,count=1
 ```
+---------------------------------------------------
+## Experiment details
+### Experiment 1
+- Reproduce the result in table 1. 
+- Iterate each step for 3 times with seed
+
+#### Checklist
+1. [ ] Train teacher from scratch
+2. [ ] Train student from scratch
+3. [ ] Samples 200 images per class
+4. [ ] Zero-shot learning
 
 
 ---------------------------------------------------
