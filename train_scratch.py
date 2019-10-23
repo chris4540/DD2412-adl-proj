@@ -50,7 +50,8 @@ class Config:
     pass
 
 def train(depth=16, width=1):
-    # seed = 42
+    seed = 42
+    set_seed(seed)
     batch_size = 128
     epochs = 200
 
