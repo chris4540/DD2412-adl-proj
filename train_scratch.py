@@ -20,17 +20,17 @@ from net.wide_resnet import WideResidualNetwork
 import numpy as np
 
 def lr_schedule(epoch):
-    """
-    """
-    lr = 1e-1
     if epoch > 160:
-        lr *= 0.008
+        print('lr: 0.0008')
+        return 0.0008
     elif epoch > 120:
-        lr *= 0.04
+        print('lr: 0.004')
+        return 0.004
     elif epoch > 60:
-        lr *= 0.2
-    print('Learning rate: ', lr)
-    return lr
+        print('lr: 0.02')
+        return 0.02
+    print('lr: 0.1')
+    return 0.1
 
 def random_pad_crop(img):
     """
