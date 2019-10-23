@@ -15,6 +15,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import LearningRateScheduler
+from tensorflow.keras.callbacks import CSVLogger
 # from tensorflow.keras.callbacks import ReduceLROnPlateau
 from net.wide_resnet import WideResidualNetwork
 import numpy as np
@@ -67,8 +68,8 @@ def train(depth=16, width=1):
 
 
     # compile model
-    optim = SGD(learning_rate=lr_schedule(0), 
-                momentum=0.9, 
+    optim = SGD(learning_rate=lr_schedule(0),
+                momentum=0.9,
                 decay=0.0005
                 )
 
@@ -91,8 +92,8 @@ def train(depth=16, width=1):
                                    verbose=1,
                                    save_best_only=True
                                    )
-    logger = CSVLogger(filename=log_filepath, 
-                       separator=',', 
+    logger = CSVLogger(filename=log_filepath,
+                       separator=',',
                        append=False
                        )
 
