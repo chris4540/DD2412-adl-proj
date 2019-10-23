@@ -31,19 +31,6 @@ from tensorflow.keras.experimental import CosineDecay
 import numpy as np
 
 # TODO: use Config class
-<<<<<<< HEAD
-z_dim = 100
-batch_size = 128
-ng_batches = 1
-ns_batches = 10
-attn_beta = 250
-total_n_pseudo_batches = 3
-n_generator_items = ng_batches + ns_batches
-student_lr = 2e-3
-generator_lr = 1e-3
-number_of_batches = 3
-
-=======
 class Config:
     """
     This config should be static as we follow the paper
@@ -65,7 +52,6 @@ class Config:
     generator_init_lr = 1e-3
 
 ## Teacher
->>>>>>> Bug fix
 teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)
 teacher.load_weights('saved_models/cifar10_WRN-40-2_model.h5')
 teacher.trainable = False
