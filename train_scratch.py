@@ -120,15 +120,12 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     callbacks = [lr_scheduler, checkpointer, logger]
 
     datagen = ImageDataGenerator(
-            rotation_range=20,
-            width_shift_range=0.1,
-            height_shift_range=0.1,
+            width_shift_range=4,
+            height_shift_range=4,
             horizontal_flip=True,
             vertical_flip=False,
-            preprocessing_function=random_pad_crop,
             rescale=None,
-            shear_range=10,
-            zca_whitening=True
+            fill_mode='reflect',
             )
 
     datagen.fit(x_train)
