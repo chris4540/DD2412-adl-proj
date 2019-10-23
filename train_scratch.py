@@ -20,6 +20,7 @@ from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.callbacks import CSVLogger
 from net.wide_resnet import WideResidualNetwork
 import numpy as np
+import argparse
 
 def lr_schedule(epoch):
     if epoch > 160:
@@ -132,5 +133,14 @@ def train(depth, width, seed=42, dataset='cifar10'):
     print('Test loss:', scores[0])
     print('Test accuracy:', scores[1])
 
+def get_arg_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--width', type=int, required=True)
+    parser.add_argument('--depth', type=int, required=True)
+    return parser
+
+
 if __name__ == '__main__':
-    train(int(sys.argv[1]), int(sys.argv[2]))
+    parser = get_arg_parser()
+    args = parser.parse_args()
+    train(args.depth, args.width)
