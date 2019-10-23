@@ -7,7 +7,6 @@ TODO:
     2. Consider upgrading randomCrop (v2.0)
 """
 import tensorflow as tf
-# tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 import os
 import sys
 from utils.preprocess import load_cifar10_data
@@ -19,6 +18,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.callbacks import CSVLogger
 from net.wide_resnet import WideResidualNetwork
+from net.wide_resnet_v2 import build_model
 import numpy as np
 import argparse
 
@@ -28,6 +28,8 @@ class Config:
     """
     batch_size = 128
     epochs = 200
+    momentum = 0.9
+    weight_decay = 5e-4
 
 def lr_schedule(epoch):
     if epoch > 160:
@@ -77,6 +79,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     # Setup model
     model_type = 'WRN-%d-%d' % (depth, width)
     wrn_model = WideResidualNetwork(depth, width, classes=classes, input_shape=shape)
+    #  wrn_model = build_model(shape, classes, depth, width)
 
     # To one-hot
     y_train = to_categorical(y_train)
@@ -85,8 +88,8 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
 
     # compile model
     optim = SGD(learning_rate=lr_schedule(0),
-                momentum=0.9,
-                decay=0.0005
+                momentum=Config.momentum,
+                decay=Config.weight_decay
                 )
 
     wrn_model.compile(loss='categorical_crossentropy',
@@ -125,6 +128,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
             preprocessing_function=random_pad_crop,
             rescale=None,
             shear_range=10,
+            zca_whitening=True
             )
 
     datagen.fit(x_train)
