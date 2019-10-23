@@ -15,9 +15,11 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import LearningRateScheduler
+from tensorflow.keras.callbacks import CSVLogger
 # from tensorflow.keras.callbacks import ReduceLROnPlateau
 from net.wide_resnet import WideResidualNetwork
 import numpy as np
+import tensorflow as tf
 
 def lr_schedule(epoch):
     if epoch > 160:
@@ -33,22 +35,13 @@ def lr_schedule(epoch):
     return 0.1
 
 def random_pad_crop(img):
-    """
-    How about
-    tf.image.random_crop
-    """
-    pad=4
-    paddings = ([pad,pad], [pad,pad], [0,0])
-    img = np.pad(img, paddings, 'reflect')
-    # Note: image_data_format is 'channel_last'
-    assert img.shape[2] == 3
-    height, width = img.shape[0], img.shape[1]
-    dy, dx = 32, 32
-    x = np.random.randint(0, width - dx + 1)
-    y = np.random.randint(0, height - dy + 1)
-    copped_image = img[y:(y+dy), x:(x+dx), :]
-    #print(copped_image.shape)
-    return copped_image
+    pad_size = 4
+    img_org_size = img.shape
+    paddings = ([pad_size,pad_size], [pad_size,pad_size], [0,0])
+    img = tf.pad(img, paddings, 'REFLECT')
+
+    ret = tf.image.random_crop(img, size=img_org_size)
+    return ret
 
 class Config:
     """
@@ -57,7 +50,8 @@ class Config:
     pass
 
 def train(depth=16, width=1):
-    # seed = 42
+    seed = 42
+    set_seed(seed)
     batch_size = 128
     epochs = 200
 
@@ -77,8 +71,8 @@ def train(depth=16, width=1):
 
 
     # compile model
-    optim = SGD(learning_rate=lr_schedule(0), 
-                momentum=0.9, 
+    optim = SGD(learning_rate=lr_schedule(0),
+                momentum=0.9,
                 decay=0.0005
                 )
 
@@ -101,8 +95,8 @@ def train(depth=16, width=1):
                                    verbose=1,
                                    save_best_only=True
                                    )
-    logger = CSVLogger(filename=log_filepath, 
-                       separator=',', 
+    logger = CSVLogger(filename=log_filepath,
+                       separator=',',
                        append=False
                        )
 
