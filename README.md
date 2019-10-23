@@ -1,24 +1,74 @@
-### advanced-deep-learning-project
-advanced-deep-learning-project
+# Advance Machine Learning Reproducibility Project
+This is the course DD2412 final project aiming for reproduce
 
-### Requirement
-Tensorflow v1.14
+## Reproducibility
 
-### See replication
+### Targets
+- Reimplementation of all methods from scratch and reproducing, empirically
+  analyzing, discussing (nearly) all results.
+- Use different model teacher and student pair model to run key results.
+  E.g. VGG-16, VGG-19.
+- [Bonus point] Successful reimplementation in another deep learning framework.
+
+## Method implemented
+[ ] Reimplement WRN from lua version
+[ ] Toy model Experiment. (Figure 1)
+[ ] Zero-shot transfer with adversarial training method
+[ ] Knowledge distillation and attention transfer (KD only has soft target)
+[ ]
+
+## Key results
+[ ] TODO 
+
+## Reproducibility Checklist
+[ReproducibilityChecklist](https://www.cs.mcgill.ca/~jpineau/ReproducibilityChecklist.pdf)
+
+## Report
+Example reports on ReScience
+
+https://rescience.github.io/read/
+
+Selected paper:
+[Re h-detach: Modifying the LSTM gradient towards better optimization](https://zenodo.org/record/3162114/files/article.pdf)
+
+## Paper-only vs author implementation
+1. [Small issue] Paper use L2-norm while their impl. uses (L2-norm)**2
+2. [Big issue] Cannot find cosine annealing setting
+3. [Small issue] Structure difference between Paul Micaelli and Sergey Zagoruyko
+
+## Platform
+Google cloud VM
+```bash
+image-name: tf-1-14-cu100-20191004
+image-family: tf-1-14-cu100
+image-project: deeplearning-platform-release
+```
+
+
+---------------------------------------------------
+## Technical details
+### Software Requirement
+Tensorflow v1.14; Capable to v1.15 or v2.0 but no testing
+Python v3.4 or above
+
+##### Cosine anneualing
+[Small intro on blog](
+https://towardsdatascience.com/https-medium-com-reina-wang-tw-stochastic-gradient-descent-with-restarts-5f511975163)
+
+##### No bias in conv layer
+From [Resnet author Kaiming He](https://github.com/a-martyn/resnet/blob/master/resnet.py)
+
+##### See how to fix the random number seed accoss keras, tensorflow, and numpy
 https://machinelearningmastery.com/reproducible-results-neural-networks-keras/
 
-### KD in keras
-https://github.com/tripdancer0916/keras-knowledge-distillation/blob/master/born_again/born_again.py
-https://github.com/TropComplique/knowledge-distillation-keras
-
-### Save model
+##### Save model in tf
 https://www.tensorflow.org/guide/keras/save_and_serialize
 
-### autodiff
+##### Autodiff in tf
 https://www.tensorflow.org/tutorials/customization/autodiff
 
-### new method
-https://www.tensorflow.org/guide/keras/custom_layers_and_models#you_can_optionally_enable_serialization_on_your_layers
+##### New method for developing
+https://www.tensorflow.org/guide/keras/custom_layers_and_models
 
-### Training WRNs from scratch
-python3 train.py 40 2
+##### PEP-8: Style Guide for Python Code
+https://www.python.org/dev/peps/pep-0008/
