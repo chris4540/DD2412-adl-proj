@@ -51,6 +51,12 @@ class Config:
     student_init_lr = 2e-3
     generator_init_lr = 1e-3
 
+    t_depth = 40
+    t_width = 2
+
+    s_depth = 16
+    s_width = 2 
+
 ## Teacher
 teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)
 teacher.load_weights('saved_models/cifar10_WRN-40-2_model.h5')
@@ -89,8 +95,7 @@ for iter_ in range(Config.n_outer_loop):
             s_logits, *_ = student(pseudo_imgs)
 
             # calculate the generator loss
-            loss = kd_loss(tf.math.softmax(t_logits),
-                           tf.math.softmax(s_logits))
+            loss = generator_loss_fn(t_logits, s_logits)
 
         # The grad for generator
         grads = tape.gradient(loss, generator.trainable_weights)
