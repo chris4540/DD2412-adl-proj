@@ -22,7 +22,6 @@ def load_cifar10_data():
     # normalize
     x_train = (x_train - x_train_mean) / x_train_std
     x_test = (x_test - x_train_mean) / x_train_std
-
     return (x_train, y_train), (x_test, y_test)
 
 def balance_sampling(data, lables_, data_per_class=200):

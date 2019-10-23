@@ -7,7 +7,6 @@ TODO:
     2. Consider upgrading randomCrop (v2.0)
 """
 import tensorflow as tf
-# tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 import os
 import sys
 from utils.preprocess import load_cifar10_data
@@ -18,9 +17,19 @@ from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.callbacks import CSVLogger
-# from tensorflow.keras.callbacks import ReduceLROnPlateau
 from net.wide_resnet import WideResidualNetwork
+from net.wide_resnet_v2 import build_model
 import numpy as np
+import argparse
+
+class Config:
+    """
+    Static config
+    """
+    batch_size = 128
+    epochs = 200
+    momentum = 0.9
+    weight_decay = 5e-4
 
 def lr_schedule(epoch):
     if epoch > 160:
@@ -35,41 +44,42 @@ def lr_schedule(epoch):
     print('lr: 0.1')
     return 0.1
 
-def random_pad_crop(img):
-    pad = 4
-    paddings = ([pad,pad], [pad,pad], [0,0])
-    img = np.pad(img, paddings, 'reflect')
+def random_pad_crop(image):
+    pad_size = 4
 
-    # Note: image_data_format is 'channel_last'
-    assert img.shape[2] == 3
-    height, width = img.shape[0], img.shape[1]
-    dy, dx = 32, 32
-    x = np.random.randint(0, width - dx + 1)
-    y = np.random.randint(0, height - dy + 1)
-    copped_image = img[y:(y+dy), x:(x+dx), :]
+    # padding to four edges
+    paddings = ([pad_size, pad_size], [pad_size, pad_size], [0, 0])
+    padded_img = np.pad(image, paddings, 'reflect')
 
-    return copped_image
+    # select the starting point
+    y = np.random.randint(0, 2*pad_size+1)
+    x = np.random.randint(0, 2*pad_size+1)
+    # set the size of cropped img, should be the same as input
+    dy, dx, _ = image.shape
+    ret = padded_img[y:(y+dy), x:(x+dx), :]
+    return ret
 
-class Config:
-    """
-    Static config
-    """
-    pass
+def mkdir(dirname):
+    save_dir = os.path.join(os.getcwd(), dirname)
+    os.makedirs(save_dir, exist_ok=True)
 
-def train(depth=16, width=1):
-    seed = 42
+
+def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
+
     set_seed(seed)
-    batch_size = 128
-    epochs = 200
-
-    model_type = 'WRN-%d-%d' % (depth, width)
-    shape = (32, 32, 3)
-    classes = 10
-
-    wrn_model = WideResidualNetwork(depth, width, classes=classes, input_shape=shape)
 
     # Load data
-    (x_train, y_train), (x_test, y_test) = load_cifar10_data()
+    if dataset == 'cifar10':
+        (x_train, y_train), (x_test, y_test) = load_cifar10_data()
+        shape = (32, 32, 3)
+        classes = 10
+    else:
+        raise NotImplementedError("TODO: SVHN")
+
+    # Setup model
+    model_type = 'WRN-%d-%d' % (depth, width)
+    wrn_model = WideResidualNetwork(depth, width, classes=classes, input_shape=shape)
+    #  wrn_model = build_model(shape, classes, depth, width)
 
     # To one-hot
     y_train = to_categorical(y_train)
@@ -78,8 +88,8 @@ def train(depth=16, width=1):
 
     # compile model
     optim = SGD(learning_rate=lr_schedule(0),
-                momentum=0.9,
-                decay=0.0005
+                momentum=Config.momentum,
+                decay=Config.weight_decay
                 )
 
     wrn_model.compile(loss='categorical_crossentropy',
@@ -87,10 +97,11 @@ def train(depth=16, width=1):
                       metrics=['accuracy'])
 
     # Prepare model model saving directory.
-    save_dir = os.path.join(os.getcwd(), 'saved_models')
+    save_dir = os.path.join(os.getcwd(), savedir)
+    mkdir(save_dir)
+
+    # Set up model name and path
     model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
-    if not os.path.isdir(save_dir):
-        os.makedirs(save_dir)
     model_filepath = os.path.join(save_dir, model_name)
     log_filepath = os.path.join(save_dir, 'log.txt')
 
@@ -117,19 +128,31 @@ def train(depth=16, width=1):
             preprocessing_function=random_pad_crop,
             rescale=None,
             shear_range=10,
+            zca_whitening=True
             )
-    # datagen = ImageDataGenerator()
 
     datagen.fit(x_train)
 
-    wrn_model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
-                            validation_data=(x_test, y_test),
-                            epochs=epochs, verbose=1,
-                            callbacks=callbacks)
+    wrn_model.fit_generator(
+        datagen.flow(x_train, y_train, batch_size=Config.batch_size),
+        validation_data=(x_test, y_test),
+        epochs=Config.epochs, verbose=1,
+        callbacks=callbacks)
 
     scores = wrn_model.evaluate(x_test, y_test, verbose=1)
     print('Test loss:', scores[0])
     print('Test accuracy:', scores[1])
 
+def get_arg_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--width', type=int, required=True)
+    parser.add_argument('--depth', type=int, required=True)
+    parser.add_argument('--savedir', type=int, default='savedir')
+    parser.add_argument('--dataset', type=int, default='cifar10')
+    return parser
+
+
 if __name__ == '__main__':
-    train(int(sys.argv[1]), int(sys.argv[2]))
+    parser = get_arg_parser()
+    args = parser.parse_args()
+    train(args.depth, args.width)
