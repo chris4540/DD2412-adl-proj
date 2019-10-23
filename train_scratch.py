@@ -18,6 +18,7 @@ from tensorflow.keras.callbacks import LearningRateScheduler
 # from tensorflow.keras.callbacks import ReduceLROnPlateau
 from net.wide_resnet import WideResidualNetwork
 import numpy as np
+import tensorflow as tf
 
 def lr_schedule(epoch):
     """
@@ -32,8 +33,9 @@ def lr_schedule(epoch):
     print('Learning rate: ', lr)
     return lr
 
-def random_pad_crop(img, pad_size=4):
-    img_org_size = img.shape()
+def random_pad_crop(img):
+    pad_size = 4
+    img_org_size = img.shape
     paddings = ([pad_size,pad_size], [pad_size,pad_size], [0,0])
     img = tf.pad(img, paddings, 'REFLECT')
 
@@ -96,7 +98,7 @@ def train(depth=16, width=1):
             height_shift_range=0.1,
             horizontal_flip=True,
             vertical_flip=False,
-            preprocessing_function=random_pad_crop,
+            # preprocessing_function=random_pad_crop,
             rescale=None
             )
 
