@@ -11,14 +11,14 @@ This is the course DD2412 final project aiming for reproduce
 - [Bonus point] Successful reimplementation in another deep learning framework.
 
 ## Method implemented
-[ ] Reimplement WRN from lua version  
-[ ] Toy model Experiment. (Figure 1)  
-[ ] Zero-shot transfer with adversarial training method  
-[ ] Knowledge distillation and attention transfer (KD only has soft target)  
-[ ]
+- [x] Reimplement WRN from lua version  
+- [ ] Toy model Experiment. (Figure 1)  
+- [x] Zero-shot transfer with adversarial training method  
+- [x] Knowledge distillation and attention transfer (KD only has soft target)  
+- [ ]
 
 ## Key results
-[ ] TODO 
+- [ ] TODO 
 
 ## Reproducibility Checklist
 [ReproducibilityChecklist](https://www.cs.mcgill.ca/~jpineau/ReproducibilityChecklist.pdf)
