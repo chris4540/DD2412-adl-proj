@@ -228,14 +228,15 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
 # ========================================================
 
 if __name__ == "__main__":
-    n = 16
-    k = 2
-    model = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0)
+    pass
+    # n = 40
+    # k = 2
+    # model = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0)
     # model.summary()
-    model.save_weights('test.h5')
+    # model.save_weights('test.h5')
 
-    model2 = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0, output_attentions=True)
-    model.load_weights('test.h5')
-    # from tensorflow.keras.utils import plot_model
-    # plt_name = "new-WRN-{}-{}.pdf".format(n, k)
-    # plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
+    # model2 = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)
+    # model.load_weights('test.h5')
+    # # from tensorflow.keras.utils import plot_model
+    # # plt_name = "new-WRN-{}-{}.pdf".format(n, k)
+    # # plot_model(model, plt_name, show_shapes=True, show_layer_names=True)

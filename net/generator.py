@@ -19,9 +19,9 @@ from tensorflow.keras.layers import Conv2DTranspose
 from tensorflow.keras.layers import Reshape
 
 
-def generator(input_dimension=100):
+def NavieGenerator(input_dim=100):
     model = tf.keras.Sequential()
-    model.add(Dense(8 * 8 * 128, input_shape=(input_dimension,)))
+    model.add(Dense(8 * 8 * 128, input_shape=(input_dim,)))
     model.add(BatchNormalization())
     model.add(LeakyReLU())
 
@@ -42,3 +42,6 @@ def generator(input_dimension=100):
     #model.add(BatchNormalization())
     assert model.output_shape == (None, 32, 32, 3)
     return model
+
+# function alias
+generator = NavieGenerator

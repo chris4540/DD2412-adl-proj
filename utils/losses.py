@@ -1,37 +1,49 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.losses import KLD
+from tensorflow.keras.losses import KLDivergence
 from tensorflow.keras.utils import normalize
 
-def kd_loss(teacher_logits, student_logits):
-    return KLD(teacher_logits, student_logits)
+def kd_loss(p_true, p_pred):
+    """
+    Kullback Leibler divergence loss
 
-def f_act(activations):
-    temp1 = np.mean(np.power(activations,2), axis=-1)
-    temp2 = temp1.reshape((temp1.shape[0],-1))
-    return normalize(temp2)
+    Args:
+        p_true:
+        p_pred:
 
-# def attention_loss(teacher_activations, student_activations):
-#     ta = f_act(teacher_activations)
-#     sa = f_act(student_activations)
-#     return np.mean(np.power(ta-sa,2))
+    Ref:
+    https://www.tensorflow.org/versions/r1.14/api_docs/python/tf/keras/losses/KLDivergence
+    """
+    return KLDivergence()(p_true, p_pred)
 
-def generator_loss(teacher_logits, student_logits):
-    return kd_loss(teacher_logits, student_logits)
+def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
+    """
+    The student loss function used in
+        - zero-shot learning
+        - Knowledge-distillaton with attention term (KD-AT)
+        - few-shot learning, few samples as KD-AT
 
-def student_loss(teacher_logits, teacher_activations, student_logits, student_activations, attn_beta):
-    kld_loss = kd_loss(teacher_logits, student_logits)
+    See Section 3.2, Eq. 1
 
-    attn_loss = 0
-    for i in range(len(teacher_activations)):
-        attn_loss += attention_loss(teacher_activations[i], student_activations[i])
+    Args:
+        t_logits: Teacher logits
+        t_acts:  list of teacher activation layer output
+        s_logits: Student logits
+        s_acts: list of student activation layer output
+        beta: hyper-parameter for tuning the weight of the attention term
 
-    total_loss = kld_loss + attn_beta*attn_loss
-    return total_loss
+    Return:
+        loss
+    """
+    loss = KLDivergence()(
+            tf.math.softmax(t_logits / temp) ,
+            tf.math.softmax(s_logits / temp))
 
-# =================================================================================
-# New version of loss for better readibility
-def spatial_attention_map(act_tensor, p=2):
+    for t_act, s_act in zip(t_acts, s_acts):
+        loss += attention_loss(t_act, s_act)
+    return loss
+
+def __spatial_attention_map(act_tensor, p=2):
     """
     Spatial attention mapping function to map the activation tensor with shape
     (H, W, C) to (H, W).
@@ -82,8 +94,8 @@ def attention_loss(act1, act2):
     https://github.com/szagoruyko/attention-transfer/blob/893df5488f93691799f082a70e2521a9dc2ddf2d/utils.py#L22
     """
     # get the activation map first
-    act_map_1 = spatial_attention_map(act1)
-    act_map_2 = spatial_attention_map(act2)
+    act_map_1 = __spatial_attention_map(act1)
+    act_map_2 = __spatial_attention_map(act2)
 
     # This is the author written in the paper
     # ret = tf.norm(act_map_2 - act_map_1, axis=-1)
