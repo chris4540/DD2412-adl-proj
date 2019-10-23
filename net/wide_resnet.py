@@ -229,10 +229,10 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
 
 if __name__ == "__main__":
     pass
-    # n = 16
+    # n = 40
     # k = 2
     # model = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0)
-    # # model.summary()
+    # model.summary()
     # model.save_weights('test.h5')
 
     # model2 = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)

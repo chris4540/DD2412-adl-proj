@@ -16,7 +16,7 @@ def kd_loss(p_true, p_pred):
     """
     return KLDivergence()(p_true, p_pred)
 
-def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta):
+def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
     """
     The student loss function used in
         - zero-shot learning
@@ -35,7 +35,9 @@ def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta):
     Return:
         loss
     """
-    loss = kd_loss(t_logits, s_logits)
+    loss = KLDivergence()(
+            tf.math.softmax(t_logits / temp) ,
+            tf.math.softmax(s_logits / temp))
 
     for t_act, s_act in zip(t_acts, s_acts):
         loss += attention_loss(t_act, s_act)

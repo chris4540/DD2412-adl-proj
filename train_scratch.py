@@ -1,54 +1,42 @@
 """
-TO DO: 
+Run:
+$ python3 train_scratch.py 40 2
+
+TODO:
     1. Fix seeds
     2. Consider upgrading randomCrop (v2.0)
 """
 import os
 import sys
-from tensorflow.keras.datasets import cifar10
+from utils.preprocess import load_cifar10_data
+from utils.preprocess import to_categorical
+from utils.seed import set_seed
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras import utils
-from tensorflow.keras.optimizers import Adam, SGD
-from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import LearningRateScheduler
+# from tensorflow.keras.callbacks import ReduceLROnPlateau
 from net.wide_resnet import WideResidualNetwork
 import numpy as np
 
-def set_seed(seed):
-    # NumPy
-    import numpy as np
-    np.random.seed(seed)
-    # Python
-    import random
-    random.seed(seed)
-    #from tensorflow import set_random_seed
-    #set_random_seed(seed)
-
-
-def get_cifar_data():
-    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
-
-    x_train = x_train.astype('float32') / 255
-    x_test = x_test.astype('float32') / 255
-    x_train = (x_train - x_train.mean(axis=0)) / (x_train.std(axis=0))
-    x_test = (x_test - x_test.mean(axis=0)) / (x_test.std(axis=0))
-
-    y_train = utils.to_categorical(y_train)
-    y_test = utils.to_categorical(y_test)
-    return x_train, y_train, x_test, y_test
-
-
 def lr_schedule(epoch):
-    lr = 1e-1
     if epoch > 160:
-        lr *= 0.008
+        print('lr: 0.0008')
+        return 0.0008
     elif epoch > 120:
-        lr *= 0.04
+        print('lr: 0.004')
+        return 0.004
     elif epoch > 60:
-        lr *= 0.2
-    print('Learning rate: ', lr)
-    return lr
+        print('lr: 0.02')
+        return 0.02
+    print('lr: 0.1')
+    return 0.1
 
 def random_pad_crop(img):
+    """
+    How about
+    tf.image.random_crop
+    """
     pad=4
     paddings = ([pad,pad], [pad,pad], [0,0])
     img = np.pad(img, paddings, 'reflect')
@@ -61,9 +49,14 @@ def random_pad_crop(img):
     copped_image = img[y:(y+dy), x:(x+dx), :]
     #print(copped_image.shape)
     return copped_image
-    
+
+class Config:
+    """
+    Static config
+    """
+    pass
+
 def train(depth=16, width=1):
-    print(depth, width)
     # seed = 42
     batch_size = 128
     epochs = 200
@@ -73,14 +66,21 @@ def train(depth=16, width=1):
     classes = 10
 
     # set_seed(seed)
-    # wrn_model = build_model(shape, classes, depth, width)
-    wrn_model = WideResidualNetwork(depth, width, classes=classes, input_shape=(32, 32, 3))
+    wrn_model = WideResidualNetwork(depth, width, classes=classes, input_shape=shape)
 
-    x_train, y_train, x_test, y_test = get_cifar_data()
+    # Load data
+    (x_train, y_train), (x_test, y_test) = load_cifar10_data()
+
+    # To one-hot
+    y_train = to_categorical(y_train)
+    y_test = to_categorical(y_test)
+
 
     # compile model
-    optim = SGD(learning_rate=lr_schedule(0), momentum=0.9, decay=0.0005)
-    # optim = Adam(learning_rate=lr_schedule(0))
+    optim = SGD(learning_rate=lr_schedule(0), 
+                momentum=0.9, 
+                decay=0.0005
+                )
 
     wrn_model.compile(loss='categorical_crossentropy',
                       optimizer=optim,
@@ -91,17 +91,22 @@ def train(depth=16, width=1):
     model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
-    filepath = os.path.join(save_dir, model_name)
+    model_filepath = os.path.join(save_dir, model_name)
+    log_filepath = os.path.join(save_dir, 'log.txt')
 
     # Prepare callbacks for model saving and for learning rate adjustment.
-    checkpoint = ModelCheckpoint(filepath=filepath,
-                                 monitor='val_acc',
-                                 verbose=1,
-                                 save_best_only=True)
-
     lr_scheduler = LearningRateScheduler(lr_schedule)
+    checkpointer = ModelCheckpoint(filepath=model_filepath,
+                                   monitor='val_acc',
+                                   verbose=1,
+                                   save_best_only=True
+                                   )
+    logger = CSVLogger(filename=log_filepath, 
+                       separator=',', 
+                       append=False
+                       )
 
-    callbacks = [checkpoint, lr_scheduler]
+    callbacks = [lr_scheduler, checkpointer, logger]
 
     datagen = ImageDataGenerator(
             rotation_range=20,
@@ -110,7 +115,8 @@ def train(depth=16, width=1):
             horizontal_flip=True,
             vertical_flip=False,
             preprocessing_function=random_pad_crop,
-            rescale=None
+            rescale=None,
+            shear_range=10,
             )
 
     datagen.fit(x_train)

@@ -27,14 +27,14 @@ class Test(unittest.TestCase):
                     classes=cls.n_classes,
                     input_shape=cls.input_shape,
                     has_softmax=False,
-                    output_attentions=True)
+                    output_activations=True)
 
         cls.model_wo_att = WideResidualNetwork(
                     cls.depth, cls.width,
                     classes=cls.n_classes,
                     input_shape=cls.input_shape,
                     has_softmax=False,
-                    output_attentions=False)
+                    output_activations=False)
 
         cls.model_out_prob = WideResidualNetwork(
                     cls.depth, cls.width,
@@ -54,21 +54,21 @@ class Test(unittest.TestCase):
             # convert it to tf
             tf_input = tf.constant(test_input, dtype=tf.float32)
             # try the model output
-            logits, att1, att2, att3 = self.model_w_att(tf_input)
+            logits, act1, act2, act3 = self.model_w_att(tf_input)
 
         self.assertEqual(logits.shape, (batch_size, self.n_classes))
 
         # attention1
         shape = (batch_size, 32, 32, 16*self.width)
-        self.assertEqual(att1.shape, shape)
+        self.assertEqual(act1.shape, shape)
 
         # attention2
         shape = (batch_size, 16, 16, 32*self.width)
-        self.assertEqual(att2.shape, shape)
+        self.assertEqual(act2.shape, shape)
 
         # attention3
         shape = (batch_size, 8, 8, 64*self.width)
-        self.assertEqual(att3.shape, shape)
+        self.assertEqual(act3.shape, shape)
 
     def test_normal(self):
 
