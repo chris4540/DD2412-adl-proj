@@ -8,7 +8,7 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, Flat
 
 def main_block(x, filters, n, strides, dropout, block_name, x0):
     # Normal part
-    x_res = Conv2D(filters, (3, 3), strides=strides, padding="same", 
+    x_res = Conv2D(filters, (3, 3), strides=strides, padding="same",
                    use_bias=False)(x) # , kernel_regularizer=l2(5e-4)
     x_res = BatchNormalization()(x_res)
     x_res = Activation('relu')(x_res)
@@ -76,43 +76,4 @@ def build_model(input_dims, output_dim, n, k, act="relu", dropout=None):
     outputs = Dense(output_dim, activation="softmax", name='final_output')(x)
 
     model = Model(inputs=inputs, outputs=outputs)
-    return model
-
-
-def get_model_outputs(model, input, mode):
-    """
-    given model and the input data, outputs the logits and activations required for attention training
-    :param model: either student or teacher model
-    :param input: input batch of images
-    :param mode: 0 for test mode or 1 for train mode
-    :return: [logits, activations of 3 main blocks]
-    """
-    get_outputs = K.function([model.layers[0].input],
-                             [model.get_layer(l).output for l in ['final_output', 'act1', 'act2', 'act3']])
-
-    return get_outputs([input, mode])
-
-
-def generator(input_dimension=100):
-    model = tf.keras.Sequential()
-    model.add(Dense(8 * 8 * 128, input_shape=(input_dimension,)))
-    model.add(BatchNormalization())
-    model.add(LeakyReLU())
-
-    model.add(layers.Reshape((8, 8, 128)))
-    assert model.output_shape == (None, 8, 8, 128)
-
-    model.add(Conv2DTranspose(128, (3, 3), strides=(2, 2), padding='same'))
-    assert model.output_shape == (None, 16, 16, 128)
-    model.add(BatchNormalization())
-    model.add(LeakyReLU())
-
-    model.add(Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same'))
-    assert model.output_shape == (None, 32, 32, 64)
-    model.add(BatchNormalization())
-    model.add(LeakyReLU())
-
-    model.add(Conv2DTranspose(3, (3, 3), strides=(1, 1), padding='same'))
-    model.add(BatchNormalization())
-    assert model.output_shape == (None, 32, 32, 3)
     return model
