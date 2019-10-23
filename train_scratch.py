@@ -77,7 +77,10 @@ def train(depth=16, width=1):
 
 
     # compile model
-    optim = SGD(learning_rate=lr_schedule(0), momentum=0.9, decay=0.0005)
+    optim = SGD(learning_rate=lr_schedule(0), 
+                momentum=0.9, 
+                decay=0.0005
+                )
 
     wrn_model.compile(loss='categorical_crossentropy',
                       optimizer=optim,
@@ -88,17 +91,22 @@ def train(depth=16, width=1):
     model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
-    filepath = os.path.join(save_dir, model_name)
+    model_filepath = os.path.join(save_dir, model_name)
+    log_filepath = os.path.join(save_dir, 'log.txt')
 
     # Prepare callbacks for model saving and for learning rate adjustment.
-    checkpoint = ModelCheckpoint(filepath=filepath,
-                                 monitor='val_acc',
-                                 verbose=1,
-                                 save_best_only=True)
-
     lr_scheduler = LearningRateScheduler(lr_schedule)
+    checkpointer = ModelCheckpoint(filepath=model_filepath,
+                                   monitor='val_acc',
+                                   verbose=1,
+                                   save_best_only=True
+                                   )
+    logger = CSVLogger(filename=log_filepath, 
+                       separator=',', 
+                       append=False
+                       )
 
-    callbacks = [checkpoint, lr_scheduler]
+    callbacks = [lr_scheduler, checkpointer, logger]
 
     datagen = ImageDataGenerator(
             rotation_range=20,
@@ -107,7 +115,8 @@ def train(depth=16, width=1):
             horizontal_flip=True,
             vertical_flip=False,
             preprocessing_function=random_pad_crop,
-            rescale=None
+            rescale=None,
+            shear_range=10,
             )
 
     datagen.fit(x_train)
