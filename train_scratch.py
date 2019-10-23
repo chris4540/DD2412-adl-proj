@@ -18,7 +18,6 @@ from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.callbacks import CSVLogger
-# from tensorflow.keras.callbacks import ReduceLROnPlateau
 from net.wide_resnet import WideResidualNetwork
 import numpy as np
 
@@ -54,22 +53,24 @@ class Config:
     """
     Static config
     """
-    pass
-
-def train(depth=16, width=1):
-    seed = 42
-    set_seed(seed)
     batch_size = 128
     epochs = 200
 
-    model_type = 'WRN-%d-%d' % (depth, width)
-    shape = (32, 32, 3)
-    classes = 10
+def train(depth, width, seed=42, dataset='cifar10'):
 
-    wrn_model = WideResidualNetwork(depth, width, classes=classes, input_shape=shape)
+    set_seed(seed)
 
     # Load data
-    (x_train, y_train), (x_test, y_test) = load_cifar10_data()
+    if dataset == 'cifar10':
+        (x_train, y_train), (x_test, y_test) = load_cifar10_data()
+        shape = (32, 32, 3)
+        classes = 10
+    else:
+        raise NotImplementedError("TODO: SVHN")
+
+    # Setup model
+    model_type = 'WRN-%d-%d' % (depth, width)
+    wrn_model = WideResidualNetwork(depth, width, classes=classes, input_shape=shape)
 
     # To one-hot
     y_train = to_categorical(y_train)
@@ -118,14 +119,14 @@ def train(depth=16, width=1):
             rescale=None,
             shear_range=10,
             )
-    # datagen = ImageDataGenerator()
 
     datagen.fit(x_train)
 
-    wrn_model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
-                            validation_data=(x_test, y_test),
-                            epochs=epochs, verbose=1,
-                            callbacks=callbacks)
+    wrn_model.fit_generator(
+        datagen.flow(x_train, y_train, batch_size=Config.batch_size),
+        validation_data=(x_test, y_test),
+        epochs=Config.epochs, verbose=1,
+        callbacks=callbacks)
 
     scores = wrn_model.evaluate(x_test, y_test, verbose=1)
     print('Test loss:', scores[0])
