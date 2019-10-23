@@ -19,6 +19,7 @@ from tensorflow.keras.callbacks import CSVLogger
 # from tensorflow.keras.callbacks import ReduceLROnPlateau
 from net.wide_resnet import WideResidualNetwork
 import numpy as np
+import tensorflow as tf
 
 def lr_schedule(epoch):
     if epoch > 160:
@@ -33,8 +34,9 @@ def lr_schedule(epoch):
     print('lr: 0.1')
     return 0.1
 
-def random_pad_crop(img, pad_size=4):
-    img_org_size = img.shape()
+def random_pad_crop(img):
+    pad_size = 4
+    img_org_size = img.shape
     paddings = ([pad_size,pad_size], [pad_size,pad_size], [0,0])
     img = tf.pad(img, paddings, 'REFLECT')
 
