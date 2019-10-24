@@ -28,6 +28,7 @@ from utils.seed import set_seed
 from net.generator import NavieGenerator
 from utils.losses import kd_loss
 from utils.losses import student_loss_fn
+from utils.preprocess import load_cifar10_data
 from tensorflow.keras.optimizers import Adam
 from net.wide_resnet import WideResidualNetwork
 from tensorflow.keras.experimental import CosineDecay
