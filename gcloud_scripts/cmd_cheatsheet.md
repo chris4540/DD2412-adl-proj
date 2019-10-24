@@ -63,10 +63,10 @@ gsutil ls
 
 - Rsync directory
 ```bash
-gsutil rsync -d -r data gs://mybucket/data
+gsutil rsync -r exp/exp1 gs://dd2412-proj-exp-data/exp1
 ```
 
 - Rsync file
 ```bash
-gsutil rsync  data gs://mybucket/data
+gsutil rsync data gs://mybucket/data
 ```
