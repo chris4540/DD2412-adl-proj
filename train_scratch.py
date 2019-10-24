@@ -125,7 +125,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     datagen.fit(x_train)
 
     wrn_model.fit_generator(
-        datagen.flow(x_train, y_train, batch_size=Config.batch_size),
+        datagen.flow(x_train, y_train, batch_size=Config.batch_size, shuffle=True),
         validation_data=(x_test, y_test),
         epochs=Config.epochs, verbose=1,
         callbacks=callbacks)
