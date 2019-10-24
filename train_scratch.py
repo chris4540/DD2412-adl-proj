@@ -29,7 +29,8 @@ class Config:
     Static config
     """
     batch_size = 128
-    epochs = math.ceil(80000/batch_size)
+    # We need to have 80k iterations for cifar 10
+    epochs = 205
     momentum = 0.9
     weight_decay = 5e-4
     init_lr = 0.1
@@ -75,6 +76,11 @@ def get_piecewise_lr_schedule_fn():
     lr_values = Config.init_lr * np.array([.2**(i) for i in range(len(boundaries)+1)])
     # boundaries: [60, 121, 162, 203]
     # lr_values: [0.1    , 0.02   , 0.004  , 0.0008 , 0.00016]
+
+    # convert them to list
+    boundaries = boundaries.tolist()
+    lr_values = lr_values.tolist()
+
     fn = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries, lr_values)
     return fn
 
