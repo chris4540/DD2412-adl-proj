@@ -24,7 +24,7 @@ def generator_loss_fn(t_logits, s_logits, temp=1):
 
 	g_loss = -loss
 
-	return gloss
+	return g_loss
 
 
 def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
@@ -51,7 +51,7 @@ def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
             tf.math.softmax(s_logits / temp))
 
     for t_act, s_act in zip(t_acts, s_acts):
-        loss += attention_loss(t_act, s_act)
+        loss += beta*attention_loss(t_act, s_act)
     return loss
 
 def __spatial_attention_map(act_tensor, p=2):
