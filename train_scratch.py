@@ -72,7 +72,9 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
 
     # Setup model
     model_type = 'WRN-%d-%d' % (depth, width)
-    wrn_model = WideResidualNetwork(depth, width, classes=classes, input_shape=shape)
+    wrn_model = WideResidualNetwork(
+            depth, width, classes=classes, input_shape=shape,
+            weight_decay=Config.weight_decay)
     #  wrn_model = build_model(shape, classes, depth, width)
 
     # To one-hot
@@ -83,7 +85,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     # compile model
     optim = SGD(learning_rate=lr_schedule(0),
                 momentum=Config.momentum,
-                decay=Config.weight_decay,
+                decay=0.0,
                 nesterov=True
                 )
 

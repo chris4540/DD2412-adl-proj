@@ -29,7 +29,7 @@ Visualize the network:
     $ python wide_resnet.py
     ```
 """
-import tensorflow
+import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense
@@ -46,6 +46,7 @@ from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Softmax
 from tensorflow.keras.layers import Lambda
 from tensorflow.keras.layers import Layer
+from tensorflow.keras import regularizers
 import tensorflow.keras.backend as K
 
 
@@ -64,7 +65,7 @@ class Identity(Layer):
         return input_shape
 
 def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
-                        input_shape=None, classes=10,
+                        input_shape=None, classes=10, weight_decay=0.0,
                         has_softmax=True, output_activations=False):
     """
     Builder function to make wide-residual network
@@ -84,6 +85,7 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
             depth=depth,
             width=width,
             dropout=dropout_rate,
+            weight_decay=weight_decay,
             has_softmax=has_softmax,
             output_activations=output_activations,
             model_name=model_name)
@@ -91,17 +93,18 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
 
     return ret
 
-def __conv1_block(input_):
+def __conv1_block(input_, weight_decay=0.0):
     """
     The first convolution layer of WRN.
     As the paper call it conv1 group, we call it conv1_block for convention
     """
 
-    x = Conv2D(16, kernel_size=3, padding='same', use_bias=False)(input_)
+    x = Conv2D(16, kernel_size=3, padding='same', use_bias=False,
+               kernel_regularizer=regularizers.l2(weight_decay))(input_)
     return x
 
 
-def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides, dropout=0.0):
+def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides, dropout=0.0, weight_decay=0.0):
     """
     See [Wide Residual Networks] Figure 1(a); B(3, 3) implementation
     TODO:
@@ -115,7 +118,8 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides, dro
     x = BatchNormalization()(input_)
     x = Activation('relu')(x)
     short_circuit_start = x  # mark this block as the short_circuit_start point
-    x = Conv2D(nOutputPlane, kernel_size=3, strides=strides, padding='same', use_bias=False)(x)
+    x = Conv2D(nOutputPlane, kernel_size=3, strides=strides, padding='same',
+               use_bias=False, kernel_regularizer=regularizers.l2(weight_decay))(x)
 
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
@@ -125,20 +129,22 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides, dro
     if dropout > 0:
         x = Dropout(dropout)(x)
 
-    x = Conv2D(nOutputPlane, kernel_size=3, strides=1, padding="same", use_bias=False)(x)
+    x = Conv2D(nOutputPlane, kernel_size=3, strides=1, padding="same",
+               use_bias=False, kernel_regularizer=regularizers.l2(weight_decay))(x)
 
     # ==================
     # short circuit
     # ==================
     if nInputPlane != nOutputPlane:
-        init = Conv2D(nOutputPlane, kernel_size=1, strides=strides, use_bias=False)(short_circuit_start)
+        init = Conv2D(nOutputPlane, kernel_size=1, strides=strides,
+                      use_bias=False, kernel_regularizer=regularizers.l2(weight_decay))(short_circuit_start)
     else:
         init = input_
 
     m = Add()([init, x])
     return m
 
-def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides, dropout=0.0):
+def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides, dropout=0.0, weight_decay=0.0):
     """
     For stacking blocks
     TODO:
@@ -148,17 +154,19 @@ def __residual_block_group(input_, nInputPlane, nOutputPlane, count, strides, dr
     for i in range(count):
         if i == 0:
             x = __basic_residual_basic_block(
-                    x, nInputPlane, nOutputPlane, strides, dropout=dropout)
+                    x, nInputPlane, nOutputPlane, strides, dropout=dropout, weight_decay=weight_decay)
         else:
             # As the first block in group resolved unequal input and output
             # on this block, the strides will be 1 for this
             x = __basic_residual_basic_block(
-                x, nOutputPlane, nOutputPlane, strides=1, dropout=dropout)
+                x, nOutputPlane, nOutputPlane, strides=1, dropout=dropout, weight_decay=weight_decay)
     return x
 
 
 def __create_wide_residual_network(nb_classes, img_input, depth=28,
-                                   width=8, dropout=0.0, has_softmax=True,
+                                   width=8, dropout=0.0,
+                                   weight_decay=0.0,
+                                   has_softmax=True,
                                    output_activations=False, model_name=None):
     ''' Creates a Wide Residual Network with specified parameters
 
@@ -184,26 +192,29 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     '''
     N = (depth - 4) // 6
 
-    x = __conv1_block(img_input)
+    x = __conv1_block(img_input, weight_decay=weight_decay)
 
     nChannels = [16, 16*width, 32*width, 64*width]
 
     # Block Group: conv2
     x = __residual_block_group(x, nChannels[0], nChannels[1],
-                               count=N, strides=1, dropout=dropout)
+                               count=N, strides=1, dropout=dropout,
+                               weight_decay=weight_decay)
     act1 = x
     # att1 = Identity(name='attention1')(x)  # Identity layer
 
 
     # Block Group: conv3
     x = __residual_block_group(x, nChannels[1], nChannels[2],
-                               count=N, strides=2, dropout=dropout)
+                               count=N, strides=2, dropout=dropout,
+                               weight_decay=weight_decay)
     act2 = x
     # att2 = Identity(name='attention2')(x)  # Identity layer
 
     # Block Group: conv4
     x = __residual_block_group(x, nChannels[2], nChannels[3],
-                               count=N, strides=2, dropout=dropout)
+                               count=N, strides=2, dropout=dropout,
+                               weight_decay=weight_decay)
     act3 = x
     # att3 = Identity(name='attention3')(x)  # Identity layer
 
@@ -231,10 +242,10 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
 
 if __name__ == "__main__":
     pass
-    # n = 40
-    # k = 2
-    # model = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0)
-    # model.summary()
+    n = 16
+    k = 2
+    model = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0, weight_decay=0.002)
+    model.summary()
     # model.load_weights('test.h5')
     # # plt_name = "WRN-{}-{}.pdf".format(n, k)
     # # from tensorflow.keras.utils import plot_model
