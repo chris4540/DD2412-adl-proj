@@ -18,6 +18,9 @@ for 1..N; do  // outer loop
         * Align teacher and student with standard KD-AT
     done
 done
+
+TODO:
+    1. Add regularization_loss: https://stackoverflow.com/q/56693863
 """
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
