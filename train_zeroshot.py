@@ -79,8 +79,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
     model_config = '%s_T-%d-%d_S-%d-%d_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
     model_name = '%s_model.h5' % model_config
-    log_filename = model_config+'_training_log.csv'
-    
+    log_filename = model_config + '_training_log.csv'
+
     save_dir = os.path.join(os.getcwd(), savedir)
     mkdir(save_dir)
 
@@ -93,12 +93,21 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     logger.info("Iteration,Generator_Loss,Student_Loss,Student_Accuracy")
 
     ## Teacher
-    teacher = WideResidualNetwork(t_depth, t_width, input_shape=Config.input_dim, dropout_rate=0.0, output_activations=True)
+    teacher = WideResidualNetwork(t_depth, t_width,
+                                  input_shape=Config.input_dim,
+                                  dropout_rate=0.0,
+                                  output_activations=True,
+                                  has_softmax=False)
+
     teacher.load_weights(t_path)
     teacher.trainable = False
 
     ## Student
-    student = WideResidualNetwork(s_depth, s_width, input_shape=Config.input_dim, dropout_rate=0.0, output_activations=True)
+    student = WideResidualNetwork(s_depth, s_width,
+                                  input_shape=Config.input_dim,
+                                  dropout_rate=0.0,
+                                  output_activations=True,
+                                  has_softmax=False)
     student_optimizer = Adam(learning_rate=CosineDecay(
                                 Config.student_init_lr,
                                 decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
@@ -166,7 +175,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 print('step %s - %s: studnt mean loss = %s' % (iter_, ns, stu_loss_met.result().numpy()))
 
         if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
-            test_accuracy = get_accuracy(student, dataset)
+            test_accuracy = get_accuracy(student, dataset)  # Not yet imported.
             logger.info(iter_,gen_loss.numpy(),stu_loss.numpy(),test_accuracy)
 
     student.save(model_filepath)

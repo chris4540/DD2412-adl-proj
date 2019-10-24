@@ -70,11 +70,16 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
     """
     Builder function to make wide-residual network
     """
+    # --------------------------------------------------------------------------
+    # input args checking
+    if not (has_softmax and output_activations):
+        # FIXME: Fix the wordings
+        raise ValueError("we should not need both softmax and activations at the same time.")
 
     if (depth - 4) % 6 != 0:
         raise ValueError('Depth of the network must be such that (depth - 4)'
                          'should be divisible by 6.')
-
+    # ----------------------------------------------------------------------------
     # make model name
     model_name = 'wide-resnet-{}-{}'.format(depth, width)
 
