@@ -84,3 +84,8 @@ https://www.tensorflow.org/guide/keras/custom_layers_and_models
 
 ##### PEP-8: Style Guide for Python Code
 https://www.python.org/dev/peps/pep-0008/
+-----------------------------------------------------------------
+## Missing info
+1. batch size
+2. Consine anneuling info
+3. How to train teacher with high acc
