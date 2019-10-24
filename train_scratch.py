@@ -2,9 +2,10 @@
 Run:
 $ python3 train_scratch.py 40 2
 
-TODO:
-    1. Fix seeds
-    2. Consider upgrading randomCrop (v2.0)
+1. Used skills not mentioned in zero shot paper:
+    1. random crop, fill_mode='reflect'
+    2. horizontal_flip
+    3. nesterov momentum
 """
 import os
 import sys
@@ -21,7 +22,6 @@ from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.callbacks import CSVLogger
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 from net.wide_resnet import WideResidualNetwork
-from net.wide_resnet_v2 import build_model
 import argparse
 
 class Config:
@@ -71,11 +71,10 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
         raise NotImplementedError("TODO: SVHN")
 
     # Setup model
-    model_type = 'WRN-%d-%d' % (depth, width)
+    model_type = 'WRN-%d-%d-seed%d' % (depth, width, seed)
     wrn_model = WideResidualNetwork(
             depth, width, classes=classes, input_shape=shape,
             weight_decay=Config.weight_decay)
-    #  wrn_model = build_model(shape, classes, depth, width)
 
     # To one-hot
     y_train = to_categorical(y_train)
@@ -100,7 +99,10 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     # Set up model name and path
     model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
     model_filepath = os.path.join(save_dir, model_name)
-    log_filepath = os.path.join(save_dir, 'log.csv')
+
+    # set up log file
+    log_fname = 'wrn-{}-{}-seed{}_log.csv'.format(depth, width, seed)
+    log_filepath = os.path.join(save_dir, log_fname)
 
     # Prepare callbacks for model saving and for learning rate adjustment.
     lr_scheduler = LearningRateScheduler(lr_schedule)
