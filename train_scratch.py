@@ -13,7 +13,7 @@ import math
 import numpy as np
 import tensorflow as tf
 from utils.preprocess import load_cifar10_data
-from utils.preprocess import to_categorical
+#from utils.preprocess import to_categorical
 from utils.seed import set_seed
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.optimizers import SGD
@@ -77,8 +77,8 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
             weight_decay=Config.weight_decay)
 
     # To one-hot
-    y_train = to_categorical(y_train)
-    y_test = to_categorical(y_test)
+    # y_train = to_categorical(y_train)
+    # y_test = to_categorical(y_test)
 
 
     # compile model
