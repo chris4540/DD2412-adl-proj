@@ -24,7 +24,7 @@ def generator_loss_fn(t_logits, s_logits, temp=1):
 
 	g_loss = -loss
 
-	return gloss
+	return g_loss
 
 
 def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
