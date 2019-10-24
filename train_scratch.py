@@ -6,9 +6,11 @@ TODO:
     1. Fix seeds
     2. Consider upgrading randomCrop (v2.0)
 """
-import tensorflow as tf
 import os
 import sys
+import math
+import numpy as np
+import tensorflow as tf
 from utils.preprocess import load_cifar10_data
 from utils.preprocess import to_categorical
 from utils.seed import set_seed
@@ -17,9 +19,9 @@ from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.callbacks import CSVLogger
+from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 from net.wide_resnet import WideResidualNetwork
 from net.wide_resnet_v2 import build_model
-import numpy as np
 import argparse
 
 class Config:
@@ -27,37 +29,29 @@ class Config:
     Static config
     """
     batch_size = 128
-    epochs = 204
+    # We need to have 80k iterations for cifar 10
+    epochs = 205
     momentum = 0.9
     weight_decay = 5e-4
+    init_lr = 0.1
+
+
 
 def lr_schedule(epoch):
-    if epoch > 160:
-        print('lr: 0.0008')
-        return 0.0008
-    elif epoch > 120:
-        print('lr: 0.004')
-        return 0.004
-    elif epoch > 60:
-        print('lr: 0.02')
-        return 0.02
-    print('lr: 0.1')
+    """
+    Although we do not change parameters, hard coding is a very bad habbit.
+
+    # of operations < 20 is negligible when we have 30s per epoch.
+    """
+    init_lr = Config.init_lr
+    fraction = epoch / Config.epochs
+    if fraction >= 0.8:
+        return init_lr * (0.2**3)
+    elif fraction >= 0.6:
+        return init_lr * (0.2**2)
+    elif fraction >= 0.3:
+        return init_lr * 0.2
     return 0.1
-
-def random_pad_crop(image):
-    pad_size = 4
-
-    # padding to four edges
-    paddings = ([pad_size, pad_size], [pad_size, pad_size], [0, 0])
-    padded_img = np.pad(image, paddings, 'reflect')
-
-    # select the starting point
-    y = np.random.randint(0, 2*pad_size+1)
-    x = np.random.randint(0, 2*pad_size+1)
-    # set the size of cropped img, should be the same as input
-    dy, dx, _ = image.shape
-    ret = padded_img[y:(y+dy), x:(x+dx), :]
-    return ret
 
 def mkdir(dirname):
     save_dir = os.path.join(os.getcwd(), dirname)
@@ -103,7 +97,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     # Set up model name and path
     model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
     model_filepath = os.path.join(save_dir, model_name)
-    log_filepath = os.path.join(save_dir, 'log.txt')
+    log_filepath = os.path.join(save_dir, 'log.csv')
 
     # Prepare callbacks for model saving and for learning rate adjustment.
     lr_scheduler = LearningRateScheduler(lr_schedule)
@@ -146,10 +140,11 @@ def get_arg_parser():
     parser.add_argument('-d', '--depth', type=int, required=True)
     parser.add_argument('--savedir', type=str, default='savedir')
     parser.add_argument('--dataset', type=str, default='cifar10')
+    parser.add_argument('--seed', type=int, default=10)
     return parser
 
 
 if __name__ == '__main__':
     parser = get_arg_parser()
     args = parser.parse_args()
-    train(args.depth, args.width)
+    train(args.depth, args.width, args.seed, savedir=args.savedir)

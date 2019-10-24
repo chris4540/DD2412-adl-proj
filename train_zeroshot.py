@@ -22,7 +22,6 @@ done
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from net.generator import NavieGenerator
-from utils.cosine_anealing import CosineAnnealingScheduler
 from utils.losses import kd_loss
 from utils.losses import student_loss_fn
 from tensorflow.keras.optimizers import Adam
@@ -55,7 +54,7 @@ class Config:
     t_width = 2
 
     s_depth = 16
-    s_width = 2 
+    s_width = 2
 
 ## Teacher
 teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)

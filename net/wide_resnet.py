@@ -13,6 +13,7 @@ Missing info if only check with the author paper:
 Reference:
     - [Wide Residual Networks](https://arxiv.org/abs/1605.07146)
     - https://towardsdatascience.com/review-wrns-wide-residual-networks-image-classification-d3feb3fb2004
+    - https://github.com/szagoruyko/wide-residual-networks
     - https://github.com/szagoruyko/wide-residual-networks/blob/master/models/wide-resnet.lua
     - https://github.com/xternalz/WideResNet-pytorch/blob/master/wideresnet.py
 
@@ -113,6 +114,7 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides, dro
     # Pre-Activation
     x = BatchNormalization()(input_)
     x = Activation('relu')(x)
+    short_circuit_start = x  # mark this block as the short_circuit_start point
     x = Conv2D(nOutputPlane, kernel_size=3, strides=strides, padding='same', use_bias=False)(x)
 
     x = BatchNormalization()(x)
@@ -129,7 +131,7 @@ def __basic_residual_basic_block(input_, nInputPlane, nOutputPlane, strides, dro
     # short circuit
     # ==================
     if nInputPlane != nOutputPlane:
-        init = Conv2D(nOutputPlane, kernel_size=1, strides=strides, use_bias=False)(input_)
+        init = Conv2D(nOutputPlane, kernel_size=1, strides=strides, use_bias=False)(short_circuit_start)
     else:
         init = input_
 
@@ -233,10 +235,13 @@ if __name__ == "__main__":
     # k = 2
     # model = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0)
     # model.summary()
-    # model.save_weights('test.h5')
-
-    # model2 = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)
     # model.load_weights('test.h5')
+    # # plt_name = "WRN-{}-{}.pdf".format(n, k)
     # # from tensorflow.keras.utils import plot_model
-    # # plt_name = "new-WRN-{}-{}.pdf".format(n, k)
     # # plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
+    # # model.save_weights('test.h5')
+
+    # # model2 = WideResidualNetwork(n, k, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)
+    # # # from tensorflow.keras.utils import plot_model
+    # # # plt_name = "new-WRN-{}-{}.pdf".format(n, k)
+    # # # plot_model(model, plt_name, show_shapes=True, show_layer_names=True)
