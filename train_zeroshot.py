@@ -21,6 +21,7 @@ done
 """
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
+from utils.seed import set_seed
 from net.generator import NavieGenerator
 from utils.losses import kd_loss
 from utils.losses import student_loss_fn
@@ -28,6 +29,11 @@ from tensorflow.keras.optimizers import Adam
 from net.wide_resnet import WideResidualNetwork
 from tensorflow.keras.experimental import CosineDecay
 import numpy as np
+import os
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger()
 
 # TODO: use Config class
 class Config:
@@ -37,6 +43,8 @@ class Config:
     # the random seed dimension
     z_dim = 100
     batch_size = 128
+    # input shape
+    input_dim = (32, 32, 3)
     # The number of inner loop to train generator to have an adversarial example
     n_g_in_loop = 1
     # The number of inner loop to align teacher and student with kd-at
@@ -44,7 +52,7 @@ class Config:
     # The weigting of the attention term
     beta = 250
     # The number of steps of the outer loop. The "N" in Algorithm 1
-    n_outer_loop = 20
+    n_outer_loop = 80000
 
     # init learing rates
     student_init_lr = 2e-3
@@ -56,75 +64,124 @@ class Config:
     s_depth = 16
     s_width = 2
 
-## Teacher
-teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)
-teacher.load_weights('saved_models/cifar10_WRN-40-2_model.h5')
-teacher.trainable = False
 
-## Student
-student = WideResidualNetwork(16, 1, input_shape=(32, 32, 3), dropout_rate=0.0, output_activations=True)
-student_optimizer = Adam(learning_rate=CosineDecay(
-                            Config.student_init_lr,
-                            decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
-## Generator
-generator = NavieGenerator(input_dim=100)
-## TODO: double check the annuealing setting
-generator_optimizer = Adam(learning_rate=CosineDecay(
-                            Config.generator_init_lr,
-                            decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
-
-# Generator loss metrics
-g_loss_met = tf.keras.metrics.Mean()
-# Student loss metrics
-stu_loss_met = tf.keras.metrics.Mean()
+def mkdir(dirname):
+    save_dir = os.path.join(os.getcwd(), dirname)
+    os.makedirs(save_dir, exist_ok=True)
 
 
-for iter_ in range(Config.n_outer_loop):
+def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, savedir='zeroshot', dataset='cifar10'):
 
-    # sample from latern space to have an image
-    z = tf.random.normal([Config.batch_size, Config.z_dim])
+    set_seed(seed)
 
-    # Generator training
-    generator.trainable = True
-    student.trainable = False
-    for ng in range(Config.n_g_in_loop):
-        with tf.GradientTape() as tape:
-            pseudo_imgs = generator(z)
-            t_logits, *_ = teacher(pseudo_imgs)
-            s_logits, *_ = student(pseudo_imgs)
+    model_config = '%s_T-%d-%d_S-%d-%d_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
+    model_name = '%s_model.h5' % model_config
+    log_filename = model_config+'_training_log.csv'
+    
+    save_dir = os.path.join(os.getcwd(), savedir)
+    mkdir(save_dir)
 
-            # calculate the generator loss
-            loss = generator_loss_fn(t_logits, s_logits)
+    model_filepath = os.path.join(save_dir, model_name)
+    log_filepath = os.path.join(save_dir, log_filename)
 
-        # The grad for generator
-        grads = tape.gradient(loss, generator.trainable_weights)
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
+    logger = logging.getLogger()
+    logger.addHandler(logging.FileHandler(log_filepath, 'a'))
+    logger.info("Iteration,Generator_Loss,Student_Loss,Student_Accuracy")
 
-        # update the generator paramter with the gradient
-        generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
+    ## Teacher
+    teacher = WideResidualNetwork(t_depth, t_width, input_shape=Config.input_dim, dropout_rate=0.0, output_activations=True)
+    teacher.load_weights(t_path)
+    teacher.trainable = False
 
-        g_loss_met(loss)
+    ## Student
+    student = WideResidualNetwork(s_depth, s_width, input_shape=Config.input_dim, dropout_rate=0.0, output_activations=True)
+    student_optimizer = Adam(learning_rate=CosineDecay(
+                                Config.student_init_lr,
+                                decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
+    ## Generator
+    generator = NavieGenerator(input_dim=Config.z_dim)
+    ## TODO: double check the annuealing setting
+    generator_optimizer = Adam(learning_rate=CosineDecay(
+                                Config.generator_init_lr,
+                                decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
 
-        if iter_ % 2 == 0:
-            print('step %s: generator mean loss = %s' % (iter_, g_loss_met.result()))
-    # ==========================================================================
+    # Generator loss metrics
+    g_loss_met = tf.keras.metrics.Mean()
+    # Student loss metrics
+    stu_loss_met = tf.keras.metrics.Mean()
 
-    # Student training
-    generator.trainable = False
-    student.trainable = True
-    for ns in range(Config.n_s_in_loop):
 
-        t_logits, *t_acts = teacher(pseudo_imgs)
-        with tf.GradientTape() as tape:
-            s_logits, *s_acts = student(pseudo_imgs)
-            loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+    for iter_ in range(Config.n_outer_loop):
 
-        # The grad for student
-        grads = tape.gradient(loss, student.trainable_weights)
+        # sample from latern space to have an image
+        z = tf.random.normal([Config.batch_size, Config.z_dim])
 
-        # Apply grad for student
-        student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
+        # Generator training
+        generator.trainable = True
+        student.trainable = False
+        for ng in range(Config.n_g_in_loop):
+            with tf.GradientTape() as tape:
+                pseudo_imgs = generator(z)
+                t_logits, *_ = teacher(pseudo_imgs)
+                s_logits, *_ = student(pseudo_imgs)
 
-        stu_loss_met(loss)
+                # calculate the generator loss
+                gen_loss = generator_loss_fn(t_logits, s_logits)
 
-        if iter_ % 2 == 0:
-            print('step %s: studnt mean loss = %s' % (iter_, stu_loss_met.result()))
+            # The grad for generator
+            grads = tape.gradient(gen_loss, generator.trainable_weights)
+
+            # update the generator paramter with the gradient
+            generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
+
+            g_loss_met(gen_loss)
+
+            if iter_ % 50 == 0:
+                print('step %s: generator mean loss = %s' % (iter_, g_loss_met.result().numpy()))
+        # ==========================================================================
+
+        # Student training
+        generator.trainable = False
+        student.trainable = True
+        for ns in range(Config.n_s_in_loop):
+
+            t_logits, *t_acts = teacher(pseudo_imgs)
+            with tf.GradientTape() as tape:
+                s_logits, *s_acts = student(pseudo_imgs)
+                stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+
+            # The grad for student
+            grads = tape.gradient(stu_loss, student.trainable_weights)
+
+            # Apply grad for student
+            student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
+
+            stu_loss_met(stu_loss)
+
+            if iter_ % 50 == 0:
+                print('step %s - %s: studnt mean loss = %s' % (iter_, ns, stu_loss_met.result().numpy()))
+
+        if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
+            test_accuracy = get_accuracy(student, dataset)
+            logger.info(iter_,gen_loss.numpy(),stu_loss.numpy(),test_accuracy)
+
+    student.save(model_filepath)
+
+def get_arg_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-tw', '--twidth', type=int, required=True)
+    parser.add_argument('-td', '--tdepth', type=int, required=True)
+    parser.add_argument('-sw', '--swidth', type=int, required=True)
+    parser.add_argument('-sd', '--sdepth', type=int, required=True)
+    parser.add_argument('--tpath','--teacherpath', type=str, required=True)
+    parser.add_argument('--savedir', type=str, default='zeroshot')
+    parser.add_argument('--dataset', type=str, default='cifar10')
+    parser.add_argument('--seed', type=int, default=10)
+    return parser
+
+
+if __name__ == '__main__':
+    parser = get_arg_parser()
+    args = parser.parse_args()
+    zeroshot(args.tdepth, args.twidth, args.teacherpath, args.sdepth, args.swidth, args.seed, savedir=args.savedir)
