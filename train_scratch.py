@@ -83,7 +83,8 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     # compile model
     optim = SGD(learning_rate=lr_schedule(0),
                 momentum=Config.momentum,
-                decay=Config.weight_decay
+                decay=Config.weight_decay,
+                nesterov=True
                 )
 
     wrn_model.compile(loss='categorical_crossentropy',
