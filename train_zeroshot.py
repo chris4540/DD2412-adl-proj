@@ -114,6 +114,9 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     # Student loss metrics
     stu_loss_met = tf.keras.metrics.Mean()
 
+    #Test data
+    (_, _), (x_test, y_test) = load_cifar10_data()
+
 
     for iter_ in range(Config.n_outer_loop):
 
@@ -166,13 +169,13 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 print('step %s - %s: studnt mean loss = %s' % (iter_, ns, stu_loss_met.result().numpy()))
 
         if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
-            test_loss, test_accuracy = get_accuracy(student, dataset)
+            test_loss, test_accuracy = get_accuracy(student, x_test, y_test)
             logger.info(iter_,gen_loss.numpy(),stu_loss.numpy(), test_loss, test_accuracy)
 
     student.save(model_filepath)
 
 
-def get_accuracy(student_model, s_depth, s_width):
+def get_accuracy(student_model, s_depth, s_width, x_test, y_test):
     model = WideResidualNetwork(s_depth, s_width, input_shape=(32, 32, 3), dropout_rate=0.0)
     model.set_weights(student_model.get_weights()) 
     model.compile(loss='categorical_crossentropy',
