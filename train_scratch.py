@@ -2,9 +2,10 @@
 Run:
 $ python3 train_scratch.py 40 2
 
-TODO:
-    1. Fix seeds
-    2. Consider upgrading randomCrop (v2.0)
+1. Used skills not mentioned in zero shot paper:
+    1. random crop, fill_mode='reflect'
+    2. horizontal_flip
+    3. nesterov momentum
 """
 import os
 import sys
