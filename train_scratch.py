@@ -37,53 +37,21 @@ class Config:
 
 
 
-# def lr_schedule(epoch):
-#     if epoch > 160:
-#         print('lr: 0.0008')
-#         return 0.0008
-#     elif epoch > 120:
-#         print('lr: 0.004')
-#         return 0.004
-#     elif epoch > 60:
-#         print('lr: 0.02')
-#         return 0.02
-#     print('lr: 0.1')
-#     return 0.1
-
-# def random_pad_crop(image):
-#     pad_size = 4
-
-#     # padding to four edges
-#     paddings = ([pad_size, pad_size], [pad_size, pad_size], [0, 0])
-#     padded_img = np.pad(image, paddings, 'reflect')
-
-#     # select the starting point
-#     y = np.random.randint(0, 2*pad_size+1)
-#     x = np.random.randint(0, 2*pad_size+1)
-#     # set the size of cropped img, should be the same as input
-#     dy, dx, _ = image.shape
-#     ret = padded_img[y:(y+dy), x:(x+dx), :]
-#     return ret
-
-def get_piecewise_lr_schedule_fn():
+def lr_schedule(epoch):
     """
-    The initial learning rate is set to 0.1 and is divided by 5 at 30%, 60%, and 80% of the run.
+    Although we do not change parameters, hard coding is a very bad habbit.
 
-    Ref:
-    https://www.tensorflow.org/versions/r1.14/api_docs/python/tf/keras/optimizers/schedules/PiecewiseConstantDecay
+    # of operations < 20 is negligible when we have 30s per epoch.
     """
-    boundaries = (Config.epochs * np.array([.3, .6, .8, 1]) - 1).astype(int)
-    lr_values = Config.init_lr * np.array([.2**(i) for i in range(len(boundaries)+1)])
-    # boundaries: [60, 121, 162, 203]
-    # lr_values: [0.1    , 0.02   , 0.004  , 0.0008 , 0.00016]
-
-    # convert them to list
-    boundaries = boundaries.tolist()
-    lr_values = lr_values.tolist()
-
-    fn = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries, lr_values)
-    return fn
-
+    init_lr = Config.init_lr
+    fraction = epoch / Config.epochs
+    if fraction >= 0.8:
+        return init_lr * (0.2**3)
+    elif fraction >= 0.6:
+        return init_lr * (0.2**2)
+    elif fraction >= 0.3:
+        return init_lr * 0.2
+    return 0.1
 
 def mkdir(dirname):
     save_dir = os.path.join(os.getcwd(), dirname)
@@ -113,7 +81,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
 
 
     # compile model
-    optim = SGD(learning_rate=get_piecewise_lr_schedule_fn(),
+    optim = SGD(learning_rate=lr_schedule(0),
                 momentum=Config.momentum,
                 decay=Config.weight_decay
                 )
@@ -132,7 +100,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     log_filepath = os.path.join(save_dir, 'log.csv')
 
     # Prepare callbacks for model saving and for learning rate adjustment.
-    # lr_scheduler = LearningRateScheduler(lr_schedule)
+    lr_scheduler = LearningRateScheduler(lr_schedule)
     checkpointer = ModelCheckpoint(filepath=model_filepath,
                                    monitor='val_acc',
                                    verbose=1,
@@ -143,7 +111,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
                        append=False
                        )
 
-    callbacks = [checkpointer, logger]
+    callbacks = [lr_scheduler, checkpointer, logger]
 
     datagen = ImageDataGenerator(
             width_shift_range=4,
