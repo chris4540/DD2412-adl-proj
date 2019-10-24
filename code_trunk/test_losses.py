@@ -3,6 +3,9 @@ Example script to show the regularization loss
 
 Run:
 python code_trunk/test_losses.py
+
+Ref:
+https://stackoverflow.com/a/55031508
 """
 import tensorflow as tf
 # Must run this in order to have similar behaviour as TF2.0
