@@ -6,9 +6,11 @@ TODO:
     1. Fix seeds
     2. Consider upgrading randomCrop (v2.0)
 """
-import tensorflow as tf
 import os
 import sys
+import math
+import numpy as np
+import tensorflow as tf
 from utils.preprocess import load_cifar10_data
 from utils.preprocess import to_categorical
 from utils.seed import set_seed
@@ -17,9 +19,9 @@ from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.callbacks import CSVLogger
+from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 from net.wide_resnet import WideResidualNetwork
 from net.wide_resnet_v2 import build_model
-import numpy as np
 import argparse
 
 class Config:
@@ -27,37 +29,55 @@ class Config:
     Static config
     """
     batch_size = 128
-    epochs = 204
+    epochs = math.ceil(80000/batch_size)
     momentum = 0.9
     weight_decay = 5e-4
+    init_lr = 0.1
 
-def lr_schedule(epoch):
-    if epoch > 160:
-        print('lr: 0.0008')
-        return 0.0008
-    elif epoch > 120:
-        print('lr: 0.004')
-        return 0.004
-    elif epoch > 60:
-        print('lr: 0.02')
-        return 0.02
-    print('lr: 0.1')
-    return 0.1
 
-def random_pad_crop(image):
-    pad_size = 4
 
-    # padding to four edges
-    paddings = ([pad_size, pad_size], [pad_size, pad_size], [0, 0])
-    padded_img = np.pad(image, paddings, 'reflect')
+# def lr_schedule(epoch):
+#     if epoch > 160:
+#         print('lr: 0.0008')
+#         return 0.0008
+#     elif epoch > 120:
+#         print('lr: 0.004')
+#         return 0.004
+#     elif epoch > 60:
+#         print('lr: 0.02')
+#         return 0.02
+#     print('lr: 0.1')
+#     return 0.1
 
-    # select the starting point
-    y = np.random.randint(0, 2*pad_size+1)
-    x = np.random.randint(0, 2*pad_size+1)
-    # set the size of cropped img, should be the same as input
-    dy, dx, _ = image.shape
-    ret = padded_img[y:(y+dy), x:(x+dx), :]
-    return ret
+# def random_pad_crop(image):
+#     pad_size = 4
+
+#     # padding to four edges
+#     paddings = ([pad_size, pad_size], [pad_size, pad_size], [0, 0])
+#     padded_img = np.pad(image, paddings, 'reflect')
+
+#     # select the starting point
+#     y = np.random.randint(0, 2*pad_size+1)
+#     x = np.random.randint(0, 2*pad_size+1)
+#     # set the size of cropped img, should be the same as input
+#     dy, dx, _ = image.shape
+#     ret = padded_img[y:(y+dy), x:(x+dx), :]
+#     return ret
+
+def get_piecewise_lr_schedule_fn():
+    """
+    The initial learning rate is set to 0.1 and is divided by 5 at 30%, 60%, and 80% of the run.
+
+    Ref:
+    https://www.tensorflow.org/versions/r1.14/api_docs/python/tf/keras/optimizers/schedules/PiecewiseConstantDecay
+    """
+    boundaries = (Config.epochs * np.array([.3, .6, .8, 1]) - 1).astype(int)
+    lr_values = Config.init_lr * np.array([.2**(i) for i in range(len(boundaries)+1)])
+    # boundaries: [60, 121, 162, 203]
+    # lr_values: [0.1    , 0.02   , 0.004  , 0.0008 , 0.00016]
+    fn = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries, lr_values)
+    return fn
+
 
 def mkdir(dirname):
     save_dir = os.path.join(os.getcwd(), dirname)
@@ -87,7 +107,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
 
 
     # compile model
-    optim = SGD(learning_rate=lr_schedule(0),
+    optim = SGD(learning_rate=get_piecewise_lr_schedule_fn(),
                 momentum=Config.momentum,
                 decay=Config.weight_decay
                 )
@@ -106,7 +126,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     log_filepath = os.path.join(save_dir, 'log.csv')
 
     # Prepare callbacks for model saving and for learning rate adjustment.
-    lr_scheduler = LearningRateScheduler(lr_schedule)
+    # lr_scheduler = LearningRateScheduler(lr_schedule)
     checkpointer = ModelCheckpoint(filepath=model_filepath,
                                    monitor='val_acc',
                                    verbose=1,
@@ -117,7 +137,7 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
                        append=False
                        )
 
-    callbacks = [lr_scheduler, checkpointer, logger]
+    callbacks = [checkpointer, logger]
 
     datagen = ImageDataGenerator(
             width_shift_range=4,
