@@ -90,7 +90,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     logging.basicConfig(level=logging.INFO, format='%(message)s')
     logger = logging.getLogger()
     logger.addHandler(logging.FileHandler(log_filepath, 'a'))
-    logger.info("Iteration,Generator_Loss,Student_Loss,Student_Accuracy")
+    logger.info("Iteration,Generator_Loss,Student_Loss,Student_Test_Loss,Student_Test_Accuracy")
 
     ## Teacher
     teacher = WideResidualNetwork(t_depth, t_width, input_shape=Config.input_dim, dropout_rate=0.0, output_activations=True)
@@ -166,10 +166,20 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 print('step %s - %s: studnt mean loss = %s' % (iter_, ns, stu_loss_met.result().numpy()))
 
         if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
-            test_accuracy = get_accuracy(student, dataset)
-            logger.info(iter_,gen_loss.numpy(),stu_loss.numpy(),test_accuracy)
+            test_loss, test_accuracy = get_accuracy(student, dataset)
+            logger.info(iter_,gen_loss.numpy(),stu_loss.numpy(), test_loss, test_accuracy)
 
     student.save(model_filepath)
+
+
+def get_accuracy(student_model, s_depth, s_width):
+    model = WideResidualNetwork(s_depth, s_width, input_shape=(32, 32, 3), dropout_rate=0.0)
+    model.set_weights(student_model.get_weights()) 
+    model.compile(loss='categorical_crossentropy',
+                      metrics=['accuracy'])
+    loss, accuracy = model.evaluate(x_test, y_test, batch_size=128, verbose=0)
+    return loss, accuracy
+
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
