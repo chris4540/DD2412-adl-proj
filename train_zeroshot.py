@@ -163,12 +163,6 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 s_logits, *s_acts = student(pseudo_imgs)
                 stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
 
-                # The L2 weighting regularization loss
-                # reg_loss = tf.reduce_sum(student.losses)
-
-                # sum them up
-                # stu_loss = stu_loss + Config.weight_decay * reg_loss
-
                 # The grad for student
                 grads = tape.gradient(stu_loss, student.trainable_weights)
 
@@ -177,13 +171,11 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
                 stu_loss_met(stu_loss)
 
-        
         s_loss = stu_loss_met.result().numpy()
         g_loss = g_loss_met.result().numpy()
 
-
         if iter_ % 50 == 0:
-            print('step %s| generator mean loss = %s | studnt mean loss = %s' % (iter_, g_loss, s_loss))
+            print('step %s | generator mean loss = %s | studnt mean loss = %s' % (iter_, g_loss, s_loss))
 
         if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
             test_accuracy = evaluate(test_data_loader, student)
