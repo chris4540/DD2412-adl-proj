@@ -51,8 +51,11 @@ def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
             tf.math.softmax(s_logits / temp))
 
     if beta != 0.0:
+        att_loss = 0.0
         for t_act, s_act in zip(t_acts, s_acts):
-            loss += beta*attention_loss(t_act, s_act)
+            att_loss += attention_loss(t_act, s_act)
+
+        loss += beta * att_loss
 
     return loss
 
@@ -86,6 +89,19 @@ def __spatial_attention_map(act_tensor, p=2):
 
 def attention_loss(act1, act2):
     """
+    This is their implementation with beta equals 250
+    """
+    # get the activation map first
+    act_map_1 = __spatial_attention_map(act1)
+    act_map_2 = __spatial_attention_map(act2)
+
+    #
+    out = tf.pow(act_map_1 - act_map_2, 2)
+    ret = tf.reduce_mean(out, axis=-1)
+    return ret
+
+def __attention_loss_orig__(act1, act2):
+    """
     Return the activation loss. The loss is the L2 distances between two
     activation map
 
@@ -99,10 +115,8 @@ def attention_loss(act1, act2):
 
     TODO:
         check their implementation and code consistency
-
-    Mirgration:
-        to attention_loss
-
+    Bug:
+        use this with beta = 250 will blow up the err and the grad will explode
     Ref:
     https://github.com/szagoruyko/attention-transfer/blob/893df5488f93691799f082a70e2521a9dc2ddf2d/utils.py#L22
     """
@@ -111,7 +125,7 @@ def attention_loss(act1, act2):
     act_map_2 = __spatial_attention_map(act2)
 
     # Calculate the L2-norm of differenes
-    ret = tf.norm(act_map_2 - act_map_1, axis=-1)
+    ret = tf.norm(act_map_2 - act_map_1, axis=-1, ord=2)
     return ret
 
 

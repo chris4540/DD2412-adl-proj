@@ -124,7 +124,7 @@ if __name__ == '__main__':
     # make student
     student = WideResidualNetwork(args.sdepth, args.sdepth, classes=Config.classes,
                                   input_shape=Config.input_shape,
-                                  has_softmax=False, output_activations=True)
+                                  has_softmax=False, output_activations=True, weight_decay=Config.weight_decay)
     # ==========================================================================
     # optimizer, like training from scratch
     optim = tf.keras.optimizers.SGD(learning_rate=lr_schedule(0),
@@ -136,11 +136,8 @@ if __name__ == '__main__':
     loss_metric = tf.keras.metrics.Mean()
     train_data_loader = tf.data.Dataset.from_tensor_slices(x_train).batch(128)
     for epoch in range(Config.epochs):
-        print('Start of epoch {}'.format(epoch))
-
         # Iterate over the batches of the dataset.
         # for x_batch_train in tqdm(train_data_loader, desc="training", ncols=40):
-        step = 0
         for x_batch_train in train_data_loader:
             # no checking on autodiff
             t_logits, *t_acts = teacher(x_batch_train)
@@ -149,19 +146,26 @@ if __name__ == '__main__':
                 s_logits, *s_acts = student(x_batch_train)
 
                 # The loss itself
-                loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, 0)
+                loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
                 # The L2 weighting regularization loss
-                # reg_loss = tf.reduce_sum(student.losses)
-                print(loss)
-                # print(reg_loss)
+                reg_loss = tf.reduce_sum(student.losses)
+
                 # sum them up
-                # loss = loss + Config.weight_decay * reg_loss
+                loss = loss + Config.weight_decay * reg_loss
 
                 grads = tape.gradient(loss, student.trainable_weights)
                 optim.apply_gradients(zip(grads, student.trainable_weights))
 
                 loss_metric(loss)
 
-                if step % 100 == 0:
-                    print('step %s: mean loss = %s' % (step, loss_metric.result().numpy()))
-                step += 1
+        epoch_loss = loss_metric.result().numpy()
+
+        log_row_dict = {
+            'epoch': epoch,
+            'loss': epoch_loss,
+        }
+        print("Epoch {epoch}: Loss = {loss}".format(**log_row_dict))
+
+        # reset metrics
+        loss_metric.reset_states()
+
