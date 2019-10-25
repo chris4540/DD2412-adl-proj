@@ -14,7 +14,9 @@ import tensorflow as tf
 # Must run this in order to have similar behaviour as TF2.0
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from net.wide_resnet import WideResidualNetwork
-from utils import preprocess
+from utils.preprocess import get_cifar10_data
+from utils.preprocess import balance_sampling
+from utils.preprocess import to_categorical
 from utils.losses import student_loss_fn
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import LearningRateScheduler
@@ -123,8 +125,13 @@ if __name__ == '__main__':
 
     # ===================================
     # Go to have training
-    # load cifar 10, TODO: make a for SVHN
-    x_train, y_train, x_test, y_test = preprocess.get_cifar_data()
+    # load cifar 10, sampling if need
+    # TODO: make a for SVHN
+    (x_train, y_train_lbl), (x_test, y_test_lbl) = get_cifar10_data()
+    if args.sample_per_class <= 5000:
+        x_train, y_train_lbl = balance_sampling(x_train, y_train_lbl, data_per_class=args.sample_per_class)
+    # y_train = to_categorical(y_train_lbl)  # we don't need training labels for KD+AT
+    y_test = to_categorical(y_test_lbl)
 
     # load teacher
     teacher = WideResidualNetwork(
@@ -167,7 +174,7 @@ if __name__ == '__main__':
                 reg_loss = tf.reduce_sum(student.losses)
 
                 # sum them up
-                loss += Config.weight_decay * reg_loss
+                loss = loss + Config.weight_decay * reg_loss
 
                 grads = tape.gradient(loss, student.trainable_weights)
                 optim.apply_gradients(zip(grads, student.trainable_weights))
