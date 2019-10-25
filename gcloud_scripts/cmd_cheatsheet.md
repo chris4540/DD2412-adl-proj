@@ -54,19 +54,24 @@ gcloud compute instances stop <vm-name>
 gcloud compute ssh --zone=<zone> <vm-name>
 ```
 -------------------------------------------------------------------
-## Copying to google cloud storage
+## Copying from / to google cloud storage
 
 - List the bluckets
 ```bash
-gsutil ls
+gsutil ls gs://dd2412-proj-exp-data/exp1
+```
+
+- Copy folder
+```bash
+gsutil cp -r wrn-16-2-seed10 gs://dd2412-proj-exp-data/exp1
 ```
 
 - Rsync directory
 ```bash
-gsutil rsync -d -r data gs://mybucket/data
+gsutil rsync -r exp/exp1 gs://dd2412-proj-exp-data/exp1
 ```
 
 - Rsync file
 ```bash
-gsutil rsync  data gs://mybucket/data
+gsutil rsync data gs://mybucket/data
 ```
