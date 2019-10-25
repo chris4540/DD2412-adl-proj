@@ -28,6 +28,7 @@ import os
 from os.path import join
 import math
 import sys
+from tqdm import tqdm
 
 class Config:
     """
@@ -72,29 +73,6 @@ def get_arg_parser():
     parser.add_argument('--dataset', type=str, default='cifar10')
     parser.add_argument('--seed', type=int, default=10)
     return parser
-
-def progressbar(it, prefix="", size=40, file=sys.stdout):
-    """
-    Progress bar showing
-    Args:
-        TODO
-    Return:
-        the yeild from the input iterator/generator
-
-    See also:
-        https://stackoverflow.com/a/34482761
-    """
-    count = len(it)
-    def show(j):
-        x = int(size*j/count)
-        file.write("%s[%s%s] %i/%i\r" % (prefix, "#"*x, "."*(size-x), j, count))
-        file.flush()
-    show(0)
-    for i, item in enumerate(it):
-        yield item
-        show(i+1)
-    file.write("\n")
-    file.flush()
 
 # ============================================================================
 # main
@@ -161,7 +139,7 @@ if __name__ == '__main__':
         print('Start of epoch {}'.format(epoch))
 
         # Iterate over the batches of the dataset.
-        for x_batch_train in progressbar(train_data_loader, prefix="training"):
+        for x_batch_train in tqdm(train_data_loader, desc="training", ncols=40):
             step = 0
             # no checking on autodiff
             t_logits, *t_acts = teacher(x_batch_train)
