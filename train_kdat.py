@@ -160,7 +160,14 @@ if __name__ == '__main__':
             # Do forwarding, watch trainable varaibles and record auto grad.
             with tf.GradientTape() as tape:
                 s_logits, *s_acts = student(x_batch_train)
+
+                # The loss itself
                 loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+                # The L2 weighting regularization loss
+                reg_loss = tf.reduce_sum(student.losses)
+
+                # sum them up
+                loss += Config.weight_decay * reg_loss
 
                 grads = tape.gradient(loss, student.trainable_weights)
                 optim.apply_gradients(zip(grads, student.trainable_weights))
