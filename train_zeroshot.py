@@ -26,7 +26,6 @@ import tensorflow as tf
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from utils.seed import set_seed
 from net.generator import NavieGenerator
-from utils.losses import kd_loss
 from utils.losses import student_loss_fn, generator_loss_fn
 from utils.preprocess import get_cifar10_data
 from utils.csvlogger import CustomizedCSVLogger
@@ -75,7 +74,7 @@ def mkdir(dirname):
 
 def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, savedir='zeroshot', dataset='cifar10'):
 
-    set_seed(seed)
+    #set_seed(seed)
 
     model_config = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
     #model_name = '%s_model.h5' % model_config
@@ -107,13 +106,13 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
     student_optimizer = Adam(learning_rate=CosineDecay(
                                 Config.student_init_lr,
-                                decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
+                                decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
     ## Generator
     generator = NavieGenerator(input_dim=Config.z_dim)
     ## TODO: double check the annuealing setting
     generator_optimizer = Adam(learning_rate=CosineDecay(
                                 Config.generator_init_lr,
-                                decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
+                                decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
 
     # Generator loss metrics
     g_loss_met = tf.keras.metrics.Mean()
@@ -150,8 +149,6 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
 
                 g_loss_met(gen_loss)
-
-                g_loss = g_loss_met.result().numpy()
                     
 
         # ==========================================================================
@@ -180,8 +177,9 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
                 stu_loss_met(stu_loss)
 
-                s_loss = stu_loss.numpy()
-
+        
+        s_loss = stu_loss_met.result().numpy()
+        g_loss = g_loss_met.result().numpy()
 
 
         if iter_ % 50 == 0:
@@ -203,9 +201,11 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 generator_filepath = os.path.join(save_dir, generator_name)
                 student_name = '%s_student_itr_%d.h5' % (model_config, iter_)
                 student_filepath = os.path.join(save_dir, student_name)
-                generator.save(generator_filepath)
-                student.save(student_filepath)
+                generator.save_weights(generator_filepath)
+                student.save_weights(student_filepath)
 
+        stu_loss_met.reset_states()
+        g_loss_met.reset_states()
 
 def evaluate(data_loader, model, output_activations=True):
     total = 0
