@@ -133,7 +133,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         for ng in range(Config.n_g_in_loop):
             with tf.GradientTape() as tape:
                 pseudo_imgs = generator(z)
-                t_logits, *_ = teacher(pseudo_imgs)
+                t_logits, *t_acts = teacher(pseudo_imgs)
                 s_logits, *_ = student(pseudo_imgs)
 
                 # calculate the generator loss
@@ -157,7 +157,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         student.trainable = True
         for ns in range(Config.n_s_in_loop):
 
-            t_logits, *t_acts = teacher(pseudo_imgs)
+            #t_logits, *t_acts = teacher(pseudo_imgs)
             with tf.GradientTape() as tape:
                 s_logits, *s_acts = student(pseudo_imgs)
                 stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
