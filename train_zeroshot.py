@@ -168,6 +168,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 #t_logits, *t_acts = teacher(pseudo_imgs)
                 s_logits, *s_acts = student(pseudo_imgs)
                 stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+
                 # The grad for student
                 grads = stape.gradient(stu_loss, student.trainable_weights)
                 # clip gradients
@@ -192,7 +193,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 'test_acc': test_accuracy
             }
             logger.log(**row_dict)
-            print('Test Accuracy: %s', test_accuracy)
+            print('Test Accuracy: ', test_accuracy)
 
         if (iter_ + 1) % Config.save_models_at == 0:
                 generator_name = '%s_generator_itr_%d.h5' % (model_config, iter_)
