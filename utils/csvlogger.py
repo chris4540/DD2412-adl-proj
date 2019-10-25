@@ -13,7 +13,7 @@ class CustomizedCSVLogger:
         self.headers = None
         # self.append = append
         # self._recs = None
-        self.__header_written = append
+        self._header_written = append
 
 
     def log(self, **kwargs):
@@ -22,10 +22,10 @@ class CustomizedCSVLogger:
 
         if not self.headers:
             self.headers = list(self.row_dict.keys())
-        self.__write()
+        self._write()
 
-    def __write(self):
-        if self.__header_written:
+    def _write(self):
+        if self._header_written:
             mode = 'a'
         else:
             mode = 'w'
@@ -33,9 +33,9 @@ class CustomizedCSVLogger:
         with open(self.filename, mode) as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=self.headers)
 
-            if not self.__header_written:
+            if not self._header_written:
                 writer.writeheader()
-                self.__header_written = True
+                self._header_written = True
 
             writer.writerow(self.row_dict)
 
