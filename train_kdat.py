@@ -31,6 +31,7 @@ import math
 import sys
 from tqdm import tqdm
 import utils
+import numpy as np
 
 class Config:
     """
@@ -79,23 +80,29 @@ def get_arg_parser():
 def evaluate(data_loader, model, output_logits=True, output_activations=True):
     total = 0
     correct = 0
-    for inputs, labels in tqdm(data_loader, desc='evaluating', ncols=40):
+    for inputs, labels in tqdm(data_loader):
         if output_activations:
             out, *_ = model(inputs, training=False)
         else:
             out = model(inputs, training=False)
 
         prob = tf.math.softmax(out, axis=-1)
+        # prob = prob.numpy()
+
         pred = tf.argmax(prob, axis=-1)
         equality = tf.equal(pred, tf.reshape(labels, [-1]))
-        # correct += tf.reduce_sum(tf.cast(equality, tf.float32))
-        print(equality.dtype)
         correct += tf.reduce_sum(tf.cast(equality, tf.float32))
         total += equality.shape[0]
 
     ret = correct / tf.cast(total, tf.float32)
-    print(ret)
-    return ret
+    return ret.numpy()
+
+# def get_accuracy(student_model, s_depth, s_width, x_test, y_test):
+#     model = WideResidualNetwork(s_depth, s_width, input_shape=(32, 32, 3), dropout_rate=0.0)
+#     model.set_weights(student_model.get_weights())
+#     model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer='sgd')
+#     loss, accuracy = model.evaluate(x_test, y_test, batch_size=200, verbose=1)
+#     return loss, accuracy
 # ============================================================================
 # main
 if __name__ == '__main__':
@@ -143,7 +150,7 @@ if __name__ == '__main__':
     teacher.trainable = False
 
     # make student
-    student = WideResidualNetwork(args.sdepth, args.sdepth, classes=Config.classes,
+    student = WideResidualNetwork(args.sdepth, args.swidth, classes=Config.classes,
                                   input_shape=Config.input_shape,
                                   has_softmax=False, output_activations=True, weight_decay=Config.weight_decay)
     # ==========================================================================
@@ -159,12 +166,13 @@ if __name__ == '__main__':
     train_data_loader = tf.data.Dataset.from_tensor_slices(x_train).batch(128)
 
     # For evaluation
-    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_lbl)).batch(128)
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_lbl)).batch(200)
+    y_test = to_categorical(y_test_lbl)
 
     for epoch in range(Config.epochs):
         # Iterate over the batches of the dataset.
-        # for x_batch_train in tqdm(train_data_loader, desc="training", ncols=40):
-        for x_batch_train in train_data_loader:
+        for x_batch_train in tqdm(train_data_loader, desc="training", ncols=80):
+        # for x_batch_train in tqdm(train_data_loader):
             # no checking on autodiff
             t_logits, *t_acts = teacher(x_batch_train)
             # Do forwarding, watch trainable varaibles and record auto grad.
@@ -192,6 +200,7 @@ if __name__ == '__main__':
         row_dict = {
             'epoch': epoch,
             'loss': epoch_loss,
+            'val_acc': test_acc
         }
         print("Epoch {epoch}: Loss = {loss}".format(**row_dict))
         logging.log(**row_dict)
