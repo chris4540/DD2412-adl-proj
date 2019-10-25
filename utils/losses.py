@@ -110,12 +110,8 @@ def attention_loss(act1, act2):
     act_map_1 = __spatial_attention_map(act1)
     act_map_2 = __spatial_attention_map(act2)
 
-    # This is the author written in the paper
-    # ret = tf.norm(act_map_2 - act_map_1, axis=-1)
-
-    # This is the implementatin they have
-    out = tf.pow(act_map_1 - act_map_2, 2)
-    ret = tf.reduce_mean(out, axis=-1)
+    # Calculate the L2-norm of differenes
+    ret = tf.norm(act_map_2 - act_map_1, axis=-1)
     return ret
 
 
