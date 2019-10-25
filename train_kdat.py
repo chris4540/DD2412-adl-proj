@@ -30,6 +30,7 @@ from os.path import join
 import math
 import sys
 from tqdm import tqdm
+import utils
 
 class Config:
     """
@@ -95,6 +96,7 @@ if __name__ == '__main__':
     else:
         savedir = os.path.join(os.getcwd(), train_name)
     print("Save dir: ", savedir)
+    utils.mkdir(savedir)
 
     # print out config
     for attr, v in vars(Config).items():
@@ -159,6 +161,7 @@ if __name__ == '__main__':
                 optim.apply_gradients(zip(grads, student.trainable_weights))
 
                 loss_metric(loss)
+            print(loss.numpy())
 
         epoch_loss = loss_metric.result().numpy()
 
@@ -166,8 +169,8 @@ if __name__ == '__main__':
             'epoch': epoch,
             'loss': epoch_loss,
         }
-        print("Epoch {epoch}: Loss = {loss}".format(**log_row_dict))
-        logging.log(row_dict)
+        print("Epoch {epoch}: Loss = {loss}".format(**row_dict))
+        logging.log(**row_dict)
 
         # reset metrics
         loss_metric.reset_states()
