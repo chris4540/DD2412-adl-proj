@@ -104,15 +104,19 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                                   output_activations=True,
                                   has_softmax=False)
 
-    student_optimizer = Adam(learning_rate=CosineDecay(
-                                Config.student_init_lr,
-                                decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
+    # student_optimizer = Adam(learning_rate=CosineDecay(
+    #                             Config.student_init_lr,
+    #                             decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
+
+    student_optimizer = Adam(0.0002)
     ## Generator
     generator = NavieGenerator(input_dim=Config.z_dim)
     ## TODO: double check the annuealing setting
-    generator_optimizer = Adam(learning_rate=CosineDecay(
-                                Config.generator_init_lr,
-                                decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
+    # generator_optimizer = Adam(learning_rate=CosineDecay(
+    #                             Config.generator_init_lr,
+    #                             decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
+
+    generator_optimizer = Adam(0.001)
 
     # Generator loss metrics
     g_loss_met = tf.keras.metrics.Mean()
@@ -144,7 +148,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
                 # The grad for generator
                 grads = tape.gradient(gen_loss, generator.trainable_weights)
-
+                grads, _ = tf.clip_by_global_norm(grads, 5.0)
                 # update the generator paramter with the gradient
                 generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
 
@@ -165,7 +169,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
                 # The grad for student
                 grads = tape.gradient(stu_loss, student.trainable_weights)
-
+                grads, _ = tf.clip_by_global_norm(grads, 5.0)
                 # Apply grad for student
                 student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
 
