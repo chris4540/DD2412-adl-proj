@@ -108,7 +108,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     #                             Config.student_init_lr,
     #                             decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
 
-    student_optimizer = Adam(0.0002)
+    student_optimizer = Adam(student_init_lr)
     ## Generator
     generator = NavieGenerator(input_dim=Config.z_dim)
     ## TODO: double check the annuealing setting
@@ -116,7 +116,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     #                             Config.generator_init_lr,
     #                             decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
 
-    generator_optimizer = Adam(0.001)
+    generator_optimizer = Adam(generator_init_lr)
 
     # Generator loss metrics
     g_loss_met = tf.keras.metrics.Mean()
@@ -135,8 +135,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         z = tf.random.normal([Config.batch_size, Config.z_dim])
 
         # Generator training
-        generator.trainable = True
-        student.trainable = False
+        #generator.trainable = True
+        #student.trainable = False
         for ng in range(Config.n_g_in_loop):
             with tf.GradientTape() as gtape:
                 pseudo_imgs = generator(z)
@@ -158,8 +158,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         # ==========================================================================
 
         # Student training
-        generator.trainable = False
-        student.trainable = True
+        #generator.trainable = False
+        #student.trainable = True
         for ns in range(Config.n_s_in_loop):
 
             #t_logits, *t_acts = teacher(pseudo_imgs)
