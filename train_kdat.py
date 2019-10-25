@@ -76,6 +76,28 @@ def get_arg_parser():
     parser.add_argument('--seed', type=int, default=10)
     return parser
 
+def evaluate(data_loader, model, output_logits=True, output_activations=True):
+    total = 0
+    correct = 0
+    for inputs, labels in data_loader:
+        print(inputs.shape)
+        print(labels.shape)
+
+        if output_activations:
+            out, *_ = model(inputs, training=False)
+        else:
+            out = model(inputs, training=False)
+
+        print(out.shape)
+        prob = tf.math.softmax(out, axis=-1)
+        pred = tf.argmax(prob, axis=-1)
+        equality = tf.equal(pred, tf.reshape(labels, -1))
+        correct = tf.reduce_sum(tf.cast(equality, tf.float32))
+        print(correct)
+
+        break
+
+    return 0.0
 # ============================================================================
 # main
 if __name__ == '__main__':
@@ -113,7 +135,7 @@ if __name__ == '__main__':
     if args.sample_per_class <= 5000:
         x_train, y_train_lbl = balance_sampling(x_train, y_train_lbl, data_per_class=args.sample_per_class)
     # y_train = to_categorical(y_train_lbl)  # we don't need training labels for KD+AT
-    y_test = to_categorical(y_test_lbl)
+
 
     # load teacher
     teacher = WideResidualNetwork(
@@ -139,6 +161,7 @@ if __name__ == '__main__':
     # Train student
     loss_metric = tf.keras.metrics.Mean()
     train_data_loader = tf.data.Dataset.from_tensor_slices(x_train).batch(128)
+    train_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_lbl)).batch(128)
     for epoch in range(Config.epochs):
         # Iterate over the batches of the dataset.
         # for x_batch_train in tqdm(train_data_loader, desc="training", ncols=40):
@@ -161,7 +184,7 @@ if __name__ == '__main__':
                 optim.apply_gradients(zip(grads, student.trainable_weights))
 
                 loss_metric(loss)
-            print(loss.numpy())
+            break
 
         epoch_loss = loss_metric.result().numpy()
 
@@ -169,9 +192,10 @@ if __name__ == '__main__':
             'epoch': epoch,
             'loss': epoch_loss,
         }
+
         print("Epoch {epoch}: Loss = {loss}".format(**row_dict))
         logging.log(**row_dict)
 
         # reset metrics
         loss_metric.reset_states()
-
+        break
