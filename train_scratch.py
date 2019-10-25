@@ -12,8 +12,8 @@ import sys
 import math
 import numpy as np
 import tensorflow as tf
-from utils.preprocess import load_cifar10_data
-#from utils.preprocess import to_categorical
+from utils.preprocess import get_cifar10_data
+from utils.preprocess import to_categorical
 from utils.seed import set_seed
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.optimizers import SGD
@@ -30,7 +30,7 @@ class Config:
     """
     batch_size = 128
     # We need to have 80k iterations for cifar 10
-    epochs = 205
+    epochs = 205 # math.ceil(80000 * batch_size / 50000)
     momentum = 0.9
     weight_decay = 5e-4
     init_lr = 0.1
@@ -64,7 +64,9 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
 
     # Load data
     if dataset == 'cifar10':
-        (x_train, y_train), (x_test, y_test) = load_cifar10_data()
+        # TODO: sampling for Fig2 green line
+        (x_train, y_train_lbl), (x_test, y_test_lbl) = get_cifar10_data()
+        # x_train, y_train_lbl = balance_sampling(x_train, y_train_lbl, data_per_class=200)
         shape = (32, 32, 3)
         classes = 10
     else:
@@ -77,8 +79,8 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
             weight_decay=Config.weight_decay)
 
     # To one-hot
-    # y_train = to_categorical(y_train)
-    # y_test = to_categorical(y_test)
+    y_train = to_categorical(y_train_lbl)
+    y_test = to_categorical(y_test_lbl)
 
 
     # compile model

@@ -50,8 +50,13 @@ def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
             tf.math.softmax(t_logits / temp) ,
             tf.math.softmax(s_logits / temp))
 
-    for t_act, s_act in zip(t_acts, s_acts):
-        loss += beta*attention_loss(t_act, s_act)
+    if beta != 0.0:
+        att_loss = 0.0
+        for t_act, s_act in zip(t_acts, s_acts):
+            att_loss += attention_loss(t_act, s_act)
+
+        loss += beta * att_loss
+
     return loss
 
 def __spatial_attention_map(act_tensor, p=2):
@@ -95,12 +100,9 @@ def attention_loss(act1, act2):
         a floating point number representing the loss. As we use tensorflow,
         the floating point number would be a number hold in tf.Tensor
 
-    TODO:
-        check their implementation and code consistency
-
-    Mirgration:
-        to attention_loss
-
+    Bug:
+        1. use this with beta = 250 will blow up the err and the grad will explode
+        2. their implementation not using beta = 250
     Ref:
     https://github.com/szagoruyko/attention-transfer/blob/893df5488f93691799f082a70e2521a9dc2ddf2d/utils.py#L22
     """
@@ -108,12 +110,14 @@ def attention_loss(act1, act2):
     act_map_1 = __spatial_attention_map(act1)
     act_map_2 = __spatial_attention_map(act2)
 
-    # This is the author written in the paper
-    # ret = tf.norm(act_map_2 - act_map_1, axis=-1)
-
-    # This is the implementatin they have
-    out = tf.pow(act_map_1 - act_map_2, 2)
-    ret = tf.reduce_mean(out, axis=-1)
+    if False: # paper impl.
+        # calculate vector norm of vectorized matrix
+        out = tf.pow(act_map_1 - act_map_2, 2)
+        out = tf.reduce_sum(out)
+        ret = tf.sqrt(out)
+    else:
+        # their code impl
+        out = tf.pow(act_map_1 - act_map_2, 2)
+        out = tf.reduce_mean(out)
+        ret = out
     return ret
-
-

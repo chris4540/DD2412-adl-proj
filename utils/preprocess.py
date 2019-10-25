@@ -1,5 +1,18 @@
 """
 For data preprocessing
+
+To vivek:
+Please seperate 3 steps; and keep others code or ask other ppl as test already broken
+- tf.keras.datasets.cifar10.load_data()
+- standardization
+- Sampling (Optional, depends on obtained class vector / label vector)
+- to_categorical
+
+Don't encapsulate step 1, 2, 4 as Chris already seperated them
+Step 1 and 2 can be together as SVHN will do so
+Read others code esp in cooperation
+
+Read the sampling example in test folder or this module main
 """
 import tensorflow as tf
 import numpy as np
@@ -9,6 +22,28 @@ def standardize_data(data):
     ret = data.astype('float32') / 255.0
     return ret
 
+def get_cifar10_data():
+    """
+    Get cifar 10 data. Do mean and bias removal
+
+    Return:
+        mean and bias removed data
+    """
+    (x_train, y_train_labels), (x_test, y_test_labels) = tf.keras.datasets.cifar10.load_data()
+
+    x_train = standardize_data(x_train)
+    x_test = standardize_data(x_test)
+
+    # normalized with train mean and std
+    x_train_mean = x_train.mean(axis=0)
+    x_train_std = x_train.std(axis=0)
+
+    x_train = (x_train - x_train_mean) / x_train_std
+    x_test = (x_test - x_train_mean) / x_train_std
+    return (x_train, y_train_labels), (x_test, y_test_labels)
+
+# ==========================================================================
+# FOR VIVEK USE ONLY
 def load_cifar10_data():
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
 
@@ -25,8 +60,9 @@ def load_cifar10_data():
 
     y_train = to_categorical(y_train)
     y_test = to_categorical(y_test)
-    
+
     return (x_train, y_train), (x_test, y_test)
+# ==========================================================================
 
 def balance_sampling(data, lables_, data_per_class=200):
 
@@ -80,16 +116,8 @@ def to_categorical(labels):
     """
     return tf.keras.utils.to_categorical(labels)
 
-# ------------------------------------------------
-# to be removed
-# def get_cifar_data():
-#     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
-
-#     x_train = x_train.astype('float32') / 255
-#     x_test = x_test.astype('float32') / 255
-#     x_train = (x_train - x_train.mean(axis=0)) / (x_train.std(axis=0))
-#     x_test = (x_test - x_test.mean(axis=0)) / (x_test.std(axis=0))
-
-#     y_train = utils.to_categorical(y_train)
-#     y_test = utils.to_categorical(y_test)
-#     return x_train, y_train, x_test, y_test
+if __name__ == "__main__":
+    (x_train, y_train_lbl), (x_test, y_test_lbl) = get_cifar10_data()
+    x_train, y_train_lbl = balance_sampling(x_train, y_train_lbl, data_per_class=200)
+    y_train = to_categorical(y_train_lbl)
+    y_test = to_categorical(y_test_lbl)
