@@ -108,7 +108,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     #                             Config.student_init_lr,
     #                             decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
 
-    student_optimizer = Adam(student_init_lr)
+    student_optimizer = Adam(Config.student_init_lr)
     ## Generator
     generator = NavieGenerator(input_dim=Config.z_dim)
     ## TODO: double check the annuealing setting
@@ -116,7 +116,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     #                             Config.generator_init_lr,
     #                             decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
 
-    generator_optimizer = Adam(generator_init_lr)
+    generator_optimizer = Adam(Config.generator_init_lr)
 
     # Generator loss metrics
     g_loss_met = tf.keras.metrics.Mean()
