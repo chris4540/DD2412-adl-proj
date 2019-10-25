@@ -74,7 +74,7 @@ def mkdir(dirname):
 
 def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, savedir='zeroshot', dataset='cifar10'):
 
-    #set_seed(seed)
+    set_seed(seed)
 
     model_config = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
     #model_name = '%s_model.h5' % model_config
@@ -135,8 +135,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         z = tf.random.normal([Config.batch_size, Config.z_dim])
 
         # Generator training
-        #generator.trainable = True
-        #student.trainable = False
+        generator.trainable = True
+        student.trainable = False
         for ng in range(Config.n_g_in_loop):
             with tf.GradientTape() as gtape:
                 pseudo_imgs = generator(z)
@@ -158,8 +158,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         # ==========================================================================
 
         # Student training
-        #generator.trainable = False
-        #student.trainable = True
+        generator.trainable = False
+        student.trainable = True
         for ns in range(Config.n_s_in_loop):
 
             #t_logits, *t_acts = teacher(pseudo_imgs)
@@ -168,6 +168,12 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 #t_logits, *t_acts = teacher(pseudo_imgs)
                 s_logits, *s_acts = student(pseudo_imgs)
                 stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+
+                """
+                Attention Loss is tiny even after *250
+                which makes same loss for gen and student with reverse sign
+                kld goes to 0 in some runs (even after setting seed that is odd)
+                """
 
                 # The grad for student
                 grads = stape.gradient(stu_loss, student.trainable_weights)
