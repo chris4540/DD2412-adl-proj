@@ -18,6 +18,7 @@ from utils.preprocess import get_cifar10_data
 from utils.preprocess import balance_sampling
 from utils.preprocess import to_categorical
 from utils.losses import student_loss_fn
+from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -131,7 +132,8 @@ if __name__ == '__main__':
                                     momentum=Config.momentum,
                                     nesterov=True)
 
-
+    # logging dict
+    logging = CustomizedCSVLogger(os.path.join(savedir, 'log_{}.csv'.format(train_name)))
     # Train student
     loss_metric = tf.keras.metrics.Mean()
     train_data_loader = tf.data.Dataset.from_tensor_slices(x_train).batch(128)
@@ -160,11 +162,12 @@ if __name__ == '__main__':
 
         epoch_loss = loss_metric.result().numpy()
 
-        log_row_dict = {
+        row_dict = {
             'epoch': epoch,
             'loss': epoch_loss,
         }
         print("Epoch {epoch}: Loss = {loss}".format(**log_row_dict))
+        logging.log(row_dict)
 
         # reset metrics
         loss_metric.reset_states()
