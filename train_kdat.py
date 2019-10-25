@@ -20,6 +20,7 @@ from utils.preprocess import to_categorical
 from utils.losses import student_loss_fn
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Model
@@ -37,7 +38,7 @@ class Config:
     """
     Static config
     """
-    beta = 250
+    beta = 0
     input_shape = (32, 32, 3)
     batch_size = 128
     # We need to have 80k iterations for cifar 10
@@ -119,6 +120,9 @@ if __name__ == '__main__':
     print("Save dir: ", savedir)
     utils.mkdir(savedir)
 
+    #
+    print('sample_per_class:', args.sample_per_class)
+
     # print out config
     for attr, v in vars(Config).items():
         if attr.startswith('__'):
@@ -131,8 +135,12 @@ if __name__ == '__main__':
     # load cifar 10, sampling if need
     # TODO: make a for SVHN
     (x_train, y_train_lbl), (x_test, y_test_lbl) = get_cifar10_data()
-    if args.sample_per_class <= 5000:
+    if args.sample_per_class < 5000:
         x_train, y_train_lbl = balance_sampling(x_train, y_train_lbl, data_per_class=args.sample_per_class)
+
+    # For evaluation
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_lbl)).batch(200)
+    # y_test = to_categorical(y_test_lbl)
 
     # load teacher
     teacher = WideResidualNetwork(
@@ -142,26 +150,26 @@ if __name__ == '__main__':
     # load from the hdf5 file. Use train_scratch to train it
     teacher.load_weights(args.teacher_weights)
     teacher.trainable = False
+    teacher_acc = evaluate(test_data_loader, teacher)
+    print("teacher_acc = ", teacher_acc)
 
     # make student
-    student = WideResidualNetwork(args.sdepth, args.swidth, classes=Config.classes,
-                                  input_shape=Config.input_shape,
-                                  has_softmax=False, output_activations=True, weight_decay=Config.weight_decay)
+    student = WideResidualNetwork(
+                args.sdepth, args.swidth,
+                classes=Config.classes,
+                input_shape=Config.input_shape,
+                has_softmax=False, output_activations=True, weight_decay=Config.weight_decay)
     # ==========================================================================
     # optimizer, like training from scratch
-    optim = tf.keras.optimizers.SGD(learning_rate=lr_schedule(0),
-                                    momentum=Config.momentum,
-                                    nesterov=True)
+    # optim = tf.keras.optimizers.SGD(learning_rate=lr_schedule(0),
+    #                                 momentum=Config.momentum, nesterov=True)
+    optim = Adam(2e-3)
 
     # logging dict
     logging = CustomizedCSVLogger(os.path.join(savedir, 'log_{}.csv'.format(train_name)))
     # Train student
     loss_metric = tf.keras.metrics.Mean()
     train_data_loader = tf.data.Dataset.from_tensor_slices(x_train).batch(128)
-
-    # For evaluation
-    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_lbl)).batch(200)
-    y_test = to_categorical(y_test_lbl)
 
     for epoch in range(Config.epochs):
         # Iterate over the batches of the dataset.
@@ -179,7 +187,7 @@ if __name__ == '__main__':
                 reg_loss = tf.reduce_sum(student.losses)
 
                 # sum them up
-                loss = loss + Config.weight_decay * reg_loss
+                loss = loss + reg_loss
 
                 grads = tape.gradient(loss, student.trainable_weights)
                 optim.apply_gradients(zip(grads, student.trainable_weights))

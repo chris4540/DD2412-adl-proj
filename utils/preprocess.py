@@ -67,7 +67,7 @@ def load_cifar10_data():
 def balance_sampling(data, lables_, data_per_class=200):
 
     # eps value to increase a bit of acceptance prob
-    eps = 1e-4
+    eps = 1e-6
 
     # Checking the shape of input
     n_data = data.shape[0]
