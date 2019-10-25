@@ -97,12 +97,6 @@ def evaluate(data_loader, model, output_logits=True, output_activations=True):
     ret = correct / tf.cast(total, tf.float32)
     return ret.numpy()
 
-# def get_accuracy(student_model, s_depth, s_width, x_test, y_test):
-#     model = WideResidualNetwork(s_depth, s_width, input_shape=(32, 32, 3), dropout_rate=0.0)
-#     model.set_weights(student_model.get_weights())
-#     model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer='sgd')
-#     loss, accuracy = model.evaluate(x_test, y_test, batch_size=200, verbose=1)
-#     return loss, accuracy
 # ============================================================================
 # main
 if __name__ == '__main__':
@@ -191,8 +185,7 @@ if __name__ == '__main__':
                 optim.apply_gradients(zip(grads, student.trainable_weights))
 
                 loss_metric(loss)
-            break
-            # print(loss.numpy())
+
 
         epoch_loss = loss_metric.result().numpy()
         test_acc = evaluate(test_data_loader, student)
@@ -200,13 +193,10 @@ if __name__ == '__main__':
         row_dict = {
             'epoch': epoch,
             'loss': epoch_loss,
-            'val_acc': test_acc
+            'test_acc': test_acc
         }
-        print("Epoch {epoch}: Loss = {loss}".format(**row_dict))
+        print("Epoch {epoch}: Loss = {loss}, test_acc = {test_acc}".format(**row_dict))
         logging.log(**row_dict)
 
         # reset metrics
         loss_metric.reset_states()
-
-        break
-
