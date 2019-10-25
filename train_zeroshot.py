@@ -26,9 +26,8 @@ import tensorflow as tf
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 from utils.seed import set_seed
 from net.generator import NavieGenerator
-from utils.losses import kd_loss
 from utils.losses import student_loss_fn, generator_loss_fn
-from utils.preprocess import load_cifar10_data
+from utils.preprocess import get_cifar10_data
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import Adam
 from net.wide_resnet import WideResidualNetwork
@@ -63,7 +62,9 @@ class Config:
     generator_init_lr = 1e-3
 
     # generator 
-    save_models_at = 1000
+    save_models_at = 800
+
+    #weight_decay = 5e-4
 
 
 def mkdir(dirname):
@@ -73,7 +74,7 @@ def mkdir(dirname):
 
 def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, savedir='zeroshot', dataset='cifar10'):
 
-    set_seed(seed)
+    #set_seed(seed)
 
     model_config = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
     #model_name = '%s_model.h5' % model_config
@@ -105,13 +106,13 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
     student_optimizer = Adam(learning_rate=CosineDecay(
                                 Config.student_init_lr,
-                                decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
+                                decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
     ## Generator
     generator = NavieGenerator(input_dim=Config.z_dim)
     ## TODO: double check the annuealing setting
     generator_optimizer = Adam(learning_rate=CosineDecay(
                                 Config.generator_init_lr,
-                                decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
+                                decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
 
     # Generator loss metrics
     g_loss_met = tf.keras.metrics.Mean()
@@ -119,7 +120,9 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     stu_loss_met = tf.keras.metrics.Mean()
 
     #Test data
-    (_, _), (x_test, y_test) = load_cifar10_data()
+    (_, _), (x_test, y_test) = get_cifar10_data()
+
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(200)
 
 
     for iter_ in tqdm(range(Config.n_outer_loop), desc="Global Training Loop"):
@@ -139,16 +142,14 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 # calculate the generator loss
                 gen_loss = generator_loss_fn(t_logits, s_logits)
 
-            # The grad for generator
-            grads = tape.gradient(gen_loss, generator.trainable_weights)
+                # The grad for generator
+                grads = tape.gradient(gen_loss, generator.trainable_weights)
 
-            # update the generator paramter with the gradient
-            generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
+                # update the generator paramter with the gradient
+                generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
 
-            g_loss_met(gen_loss)
-
-            if iter_ % 50 == 0:
-                print('step %s: generator mean loss = %s' % (iter_, g_loss_met.result().numpy()))
+                g_loss_met(gen_loss)
+                    
 
         # ==========================================================================
 
@@ -162,38 +163,69 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 s_logits, *s_acts = student(pseudo_imgs)
                 stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
 
-            # The grad for student
-            grads = tape.gradient(stu_loss, student.trainable_weights)
+                # The L2 weighting regularization loss
+                # reg_loss = tf.reduce_sum(student.losses)
 
-            # Apply grad for student
-            student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
+                # sum them up
+                # stu_loss = stu_loss + Config.weight_decay * reg_loss
 
-            stu_loss_met(stu_loss)
+                # The grad for student
+                grads = tape.gradient(stu_loss, student.trainable_weights)
 
-            if iter_ % 50 == 0:
-                print('step %s - %s: studnt mean loss = %s' % (iter_, ns, stu_loss_met.result().numpy()))
+                # Apply grad for student
+                student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
+
+                stu_loss_met(stu_loss)
+
+        
+        s_loss = stu_loss_met.result().numpy()
+        g_loss = g_loss_met.result().numpy()
+
+
+        if iter_ % 50 == 0:
+            print('step %s| generator mean loss = %s | studnt mean loss = %s' % (iter_, g_loss, s_loss))
 
         if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
-            test_loss, test_accuracy = get_accuracy(student, s_depth, s_width, x_test, y_test)
-            logger.log(Iteration=iter_, Generator_loss=gen_loss.numpy(), 
-                Student_loss=stu_loss.numpy(), Test_loss=test_loss, Test_acuracy=test_accuracy)
+            test_accuracy = evaluate(test_data_loader, student)
+            row_dict = {
+                'epoch': iter_,
+                'generator_loss': g_loss,
+                'student_loss': s_loss,
+                'test_acc': test_accuracy
+            }
+            logger.log(**row_dict)
+            print('Test Accuracy: %s', test_accuracy)
 
         if (iter_ + 1) % Config.save_models_at == 0:
                 generator_name = '%s_generator_itr_%d.h5' % (model_config, iter_)
                 generator_filepath = os.path.join(save_dir, generator_name)
                 student_name = '%s_student_itr_%d.h5' % (model_config, iter_)
                 student_filepath = os.path.join(save_dir, student_name)
-                generator.save(generator_filepath)
-                student.save(student_filepath)
+                generator.save_weights(generator_filepath)
+                student.save_weights(student_filepath)
 
+        stu_loss_met.reset_states()
+        g_loss_met.reset_states()
 
-def get_accuracy(student_model, s_depth, s_width, x_test, y_test):
-    model = WideResidualNetwork(s_depth, s_width, input_shape=(32, 32, 3), dropout_rate=0.0)
-    model.set_weights(student_model.get_weights()) 
-    model.compile(loss='categorical_crossentropy', metrics=['accuracy'])
-    loss, accuracy = model.evaluate(x_test, y_test, batch_size=200, verbose=0)
-    return loss, accuracy
+def evaluate(data_loader, model, output_activations=True):
+    total = 0
+    correct = 0
+    for inputs, labels in tqdm(data_loader):
+        if output_activations:
+            out, *_ = model(inputs, training=False)
+        else:
+            out = model(inputs, training=False)
 
+        prob = tf.math.softmax(out, axis=-1)
+        # prob = prob.numpy()
+
+        pred = tf.argmax(prob, axis=-1)
+        equality = tf.equal(pred, tf.reshape(labels, [-1]))
+        correct += tf.reduce_sum(tf.cast(equality, tf.float32))
+        total += equality.shape[0]
+
+    ret = correct / tf.cast(total, tf.float32)
+    return ret.numpy()
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
