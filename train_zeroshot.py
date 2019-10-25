@@ -27,7 +27,7 @@ tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mo
 from utils.seed import set_seed
 from net.generator import NavieGenerator
 from utils.losses import kd_loss
-from utils.losses import student_loss_fn
+from utils.losses import student_loss_fn, generator_loss_fn
 from utils.preprocess import load_cifar10_data
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import Adam
@@ -35,6 +35,8 @@ from net.wide_resnet import WideResidualNetwork
 from tensorflow.keras.experimental import CosineDecay
 import numpy as np
 import os
+import argparse
+from tqdm import tqdm
 
 
 # TODO: use Config class
@@ -120,7 +122,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     (_, _), (x_test, y_test) = load_cifar10_data()
 
 
-    for iter_ in range(Config.n_outer_loop):
+    for iter_ in tqdm(range(Config.n_outer_loop), desc="Global Training Loop"):
 
         # sample from latern space to have an image
         z = tf.random.normal([Config.batch_size, Config.z_dim])
@@ -172,7 +174,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 print('step %s - %s: studnt mean loss = %s' % (iter_, ns, stu_loss_met.result().numpy()))
 
         if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
-            test_loss, test_accuracy = get_accuracy(student, x_test, y_test)
+            test_loss, test_accuracy = get_accuracy(student, s_depth, s_width, x_test, y_test)
             logger.log(Iteration=iter_, Generator_loss=gen_loss.numpy(), 
                 Student_loss=stu_loss.numpy(), Test_loss=test_loss, Test_acuracy=test_accuracy)
 
@@ -195,11 +197,11 @@ def get_accuracy(student_model, s_depth, s_width, x_test, y_test):
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-tw', '--twidth', type=int, required=True)
     parser.add_argument('-td', '--tdepth', type=int, required=True)
-    parser.add_argument('-sw', '--swidth', type=int, required=True)
+    parser.add_argument('-tw', '--twidth', type=int, required=True)
     parser.add_argument('-sd', '--sdepth', type=int, required=True)
-    parser.add_argument('--tpath','--teacherpath', type=str, required=True)
+    parser.add_argument('-sw', '--swidth', type=int, required=True)
+    parser.add_argument('-tpath','--teacherpath', type=str, required=True)
     parser.add_argument('--savedir', type=str, default='zeroshot')
     parser.add_argument('--dataset', type=str, default='cifar10')
     parser.add_argument('--seed', type=int, default=10)
@@ -209,4 +211,4 @@ def get_arg_parser():
 if __name__ == '__main__':
     parser = get_arg_parser()
     args = parser.parse_args()
-    zeroshot(args.tdepth, args.twidth, args.teacherpath, args.sdepth, args.swidth, args.seed, savedir=args.savedir)
+    zeroshot_train(args.tdepth, args.twidth, args.teacherpath, args.sdepth, args.swidth, args.seed, savedir=args.savedir)
