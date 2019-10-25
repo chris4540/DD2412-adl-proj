@@ -89,19 +89,6 @@ def __spatial_attention_map(act_tensor, p=2):
 
 def attention_loss(act1, act2):
     """
-    This is their implementation with beta equals 250
-    """
-    # get the activation map first
-    act_map_1 = __spatial_attention_map(act1)
-    act_map_2 = __spatial_attention_map(act2)
-
-    #
-    out = tf.pow(act_map_1 - act_map_2, 2)
-    ret = tf.reduce_mean(out, axis=-1)
-    return ret
-
-def __attention_loss_orig__(act1, act2):
-    """
     Return the activation loss. The loss is the L2 distances between two
     activation map
 
@@ -113,10 +100,9 @@ def __attention_loss_orig__(act1, act2):
         a floating point number representing the loss. As we use tensorflow,
         the floating point number would be a number hold in tf.Tensor
 
-    TODO:
-        check their implementation and code consistency
     Bug:
-        use this with beta = 250 will blow up the err and the grad will explode
+        1. use this with beta = 250 will blow up the err and the grad will explode
+        2. their implementation not using beta = 250
     Ref:
     https://github.com/szagoruyko/attention-transfer/blob/893df5488f93691799f082a70e2521a9dc2ddf2d/utils.py#L22
     """
@@ -124,8 +110,14 @@ def __attention_loss_orig__(act1, act2):
     act_map_1 = __spatial_attention_map(act1)
     act_map_2 = __spatial_attention_map(act2)
 
-    # Calculate the L2-norm of differenes
-    ret = tf.norm(act_map_2 - act_map_1, axis=-1, ord=2)
+    if False: # paper impl.
+        # calculate vector norm of vectorized matrix
+        out = tf.pow(act_map_1 - act_map_2, 2)
+        out = tf.reduce_sum(out)
+        ret = tf.sqrt(out)
+    else:
+        # their code impl
+        out = tf.pow(act_map_1 - act_map_2, 2)
+        out = tf.reduce_mean(out)
+        ret = out
     return ret
-
-
