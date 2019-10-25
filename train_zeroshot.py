@@ -74,7 +74,7 @@ def mkdir(dirname):
 
 def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, savedir='zeroshot', dataset='cifar10'):
 
-    #set_seed(seed)
+    set_seed(seed)
 
     model_config = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
     #model_name = '%s_model.h5' % model_config
@@ -104,15 +104,19 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                                   output_activations=True,
                                   has_softmax=False)
 
-    student_optimizer = Adam(learning_rate=CosineDecay(
-                                Config.student_init_lr,
-                                decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
+    # student_optimizer = Adam(learning_rate=CosineDecay(
+    #                             Config.student_init_lr,
+    #                             decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
+
+    student_optimizer = Adam(Config.student_init_lr)
     ## Generator
     generator = NavieGenerator(input_dim=Config.z_dim)
     ## TODO: double check the annuealing setting
-    generator_optimizer = Adam(learning_rate=CosineDecay(
-                                Config.generator_init_lr,
-                                decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
+    # generator_optimizer = Adam(learning_rate=CosineDecay(
+    #                             Config.generator_init_lr,
+    #                             decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
+
+    generator_optimizer = Adam(Config.generator_init_lr)
 
     # Generator loss metrics
     g_loss_met = tf.keras.metrics.Mean()
@@ -134,17 +138,17 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         generator.trainable = True
         student.trainable = False
         for ng in range(Config.n_g_in_loop):
-            with tf.GradientTape() as tape:
+            with tf.GradientTape() as gtape:
                 pseudo_imgs = generator(z)
                 t_logits, *t_acts = teacher(pseudo_imgs)
                 s_logits, *_ = student(pseudo_imgs)
 
                 # calculate the generator loss
                 gen_loss = generator_loss_fn(t_logits, s_logits)
-
                 # The grad for generator
-                grads = tape.gradient(gen_loss, generator.trainable_weights)
-
+                grads = gtape.gradient(gen_loss, generator.trainable_weights)
+                # clip gradients
+                grads, _ = tf.clip_by_global_norm(grads, 5.0)
                 # update the generator paramter with the gradient
                 generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
 
@@ -159,31 +163,32 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         for ns in range(Config.n_s_in_loop):
 
             #t_logits, *t_acts = teacher(pseudo_imgs)
-            with tf.GradientTape() as tape:
+            with tf.GradientTape() as stape:
+                #pseudo_imgs = generator(z)
+                #t_logits, *t_acts = teacher(pseudo_imgs)
                 s_logits, *s_acts = student(pseudo_imgs)
                 stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
 
-                # The L2 weighting regularization loss
-                # reg_loss = tf.reduce_sum(student.losses)
-
-                # sum them up
-                # stu_loss = stu_loss + Config.weight_decay * reg_loss
+                """
+                Attention Loss is tiny even after *250
+                which makes same loss for gen and student with reverse sign
+                kld goes to 0 in some runs (even after setting seed that is odd)
+                """
 
                 # The grad for student
-                grads = tape.gradient(stu_loss, student.trainable_weights)
-
+                grads = stape.gradient(stu_loss, student.trainable_weights)
+                # clip gradients
+                grads, _ = tf.clip_by_global_norm(grads, 5.0)
                 # Apply grad for student
                 student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
 
                 stu_loss_met(stu_loss)
 
-        
         s_loss = stu_loss_met.result().numpy()
         g_loss = g_loss_met.result().numpy()
 
-
-        if iter_ % 50 == 0:
-            print('step %s| generator mean loss = %s | studnt mean loss = %s' % (iter_, g_loss, s_loss))
+        if iter_ % 5 == 0:
+            print('step %s | generator mean loss = %s | studnt mean loss = %s' % (iter_, g_loss, s_loss))
 
         if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
             test_accuracy = evaluate(test_data_loader, student)
@@ -194,7 +199,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 'test_acc': test_accuracy
             }
             logger.log(**row_dict)
-            print('Test Accuracy: %s', test_accuracy)
+            print('Test Accuracy: ', test_accuracy)
 
         if (iter_ + 1) % Config.save_models_at == 0:
                 generator_name = '%s_generator_itr_%d.h5' % (model_config, iter_)
