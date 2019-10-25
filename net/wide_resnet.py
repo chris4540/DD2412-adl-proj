@@ -72,7 +72,7 @@ def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
     """
     # --------------------------------------------------------------------------
     # input args checking
-    if not (has_softmax and output_activations):
+    if (has_softmax and output_activations):
         # FIXME: Fix the wordings
         raise ValueError("we should not need both softmax and activations at the same time.")
 
