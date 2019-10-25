@@ -45,6 +45,7 @@ def get_cifar10_test():
 
 def match_beliefs(X_te=None, m_s=None, m_t=None):
 
+    X_te = ct(X_te)
     ix = np.where(np.argmax(m_s.predict(X_te),-1) == np.argmax(m_t.predict(X_te),-1))[0]
     T = np.empty((len(ix),9,30,2))
 
@@ -58,19 +59,20 @@ def match_beliefs(X_te=None, m_s=None, m_t=None):
 
         for y,y_c in enumerate(y_cs):
 
-            X_c = ct(X)
+            X_c = X
 
             for k in range(30):
-
-                Y_s = m_s(X_c)
-                Y_t = m_t(X_c)
                 
                 with tf.GradientTape() as g:
 
                     g.watch(X_c)
-                    X_c -= g.gradient(ce(tf.one_hot([y_c],10), m_s(X_c)), X_c)
+
+                    Y_s = m_s(X_c)
+                    Y_t = m_t(X_c)
                     
-                T[r,y,k] = [Y_s[0,y_c], Y_t[0,y_c]]
+                    X_c -= g.gradient(ce(tf.one_hot([y_c],10), Y_s), X_c)
+                    
+                    T[r,y,k] = [Y_s[0,y_c], Y_t[0,y_c]]
     
     compute_mte(T)
     
@@ -108,6 +110,9 @@ if __name__ == '__main__':
 
     m_s, m_t = get_student_teacher_models() if len(sys.argv)==1 else get_student_teacher_models(int(sys.argv[1]), int(sys.argv[2]))
     
+    m_s.trainable = False
+    m_t.trainable = False
+
     create_transition_curves(match_beliefs(get_cifar10_test(), m_s, m_t))
 
     exit(0)
