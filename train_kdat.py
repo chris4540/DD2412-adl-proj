@@ -139,8 +139,9 @@ if __name__ == '__main__':
         print('Start of epoch {}'.format(epoch))
 
         # Iterate over the batches of the dataset.
-        for x_batch_train in tqdm(train_data_loader, desc="training", ncols=40):
-            step = 0
+        # for x_batch_train in tqdm(train_data_loader, desc="training", ncols=40):
+        step = 0
+        for x_batch_train in train_data_loader:
             # no checking on autodiff
             t_logits, *t_acts = teacher(x_batch_train)
             # Do forwarding, watch trainable varaibles and record auto grad.
@@ -148,12 +149,13 @@ if __name__ == '__main__':
                 s_logits, *s_acts = student(x_batch_train)
 
                 # The loss itself
-                loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+                loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, 0)
                 # The L2 weighting regularization loss
-                reg_loss = tf.reduce_sum(student.losses)
-
+                # reg_loss = tf.reduce_sum(student.losses)
+                print(loss)
+                # print(reg_loss)
                 # sum them up
-                loss = loss + Config.weight_decay * reg_loss
+                # loss = loss + Config.weight_decay * reg_loss
 
                 grads = tape.gradient(loss, student.trainable_weights)
                 optim.apply_gradients(zip(grads, student.trainable_weights))
@@ -161,5 +163,5 @@ if __name__ == '__main__':
                 loss_metric(loss)
 
                 if step % 100 == 0:
-                    print('step %s: mean loss = %s' % (step, loss_metric.result()))
+                    print('step %s: mean loss = %s' % (step, loss_metric.result().numpy()))
                 step += 1
