@@ -79,25 +79,23 @@ def get_arg_parser():
 def evaluate(data_loader, model, output_logits=True, output_activations=True):
     total = 0
     correct = 0
-    for inputs, labels in data_loader:
-        print(inputs.shape)
-        print(labels.shape)
-
+    for inputs, labels in tqdm(data_loader, desc='evaluating', ncols=40):
         if output_activations:
             out, *_ = model(inputs, training=False)
         else:
             out = model(inputs, training=False)
 
-        print(out.shape)
         prob = tf.math.softmax(out, axis=-1)
         pred = tf.argmax(prob, axis=-1)
-        equality = tf.equal(pred, tf.reshape(labels, -1))
-        correct = tf.reduce_sum(tf.cast(equality, tf.float32))
-        print(correct)
+        equality = tf.equal(pred, tf.reshape(labels, [-1]))
+        # correct += tf.reduce_sum(tf.cast(equality, tf.float32))
+        print(equality.dtype)
+        correct += tf.reduce_sum(tf.cast(equality, tf.float32))
+        total += equality.shape[0]
 
-        break
-
-    return 0.0
+    ret = correct / tf.cast(total, tf.float32)
+    print(ret)
+    return ret
 # ============================================================================
 # main
 if __name__ == '__main__':
@@ -134,8 +132,6 @@ if __name__ == '__main__':
     (x_train, y_train_lbl), (x_test, y_test_lbl) = get_cifar10_data()
     if args.sample_per_class <= 5000:
         x_train, y_train_lbl = balance_sampling(x_train, y_train_lbl, data_per_class=args.sample_per_class)
-    # y_train = to_categorical(y_train_lbl)  # we don't need training labels for KD+AT
-
 
     # load teacher
     teacher = WideResidualNetwork(
@@ -161,7 +157,10 @@ if __name__ == '__main__':
     # Train student
     loss_metric = tf.keras.metrics.Mean()
     train_data_loader = tf.data.Dataset.from_tensor_slices(x_train).batch(128)
-    train_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_lbl)).batch(128)
+
+    # For evaluation
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_lbl)).batch(128)
+
     for epoch in range(Config.epochs):
         # Iterate over the batches of the dataset.
         # for x_batch_train in tqdm(train_data_loader, desc="training", ncols=40):
@@ -185,17 +184,20 @@ if __name__ == '__main__':
 
                 loss_metric(loss)
             break
+            # print(loss.numpy())
 
         epoch_loss = loss_metric.result().numpy()
+        test_acc = evaluate(test_data_loader, student)
 
         row_dict = {
             'epoch': epoch,
             'loss': epoch_loss,
         }
-
         print("Epoch {epoch}: Loss = {loss}".format(**row_dict))
         logging.log(**row_dict)
 
         # reset metrics
         loss_metric.reset_states()
+
         break
+
