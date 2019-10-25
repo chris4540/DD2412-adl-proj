@@ -104,7 +104,7 @@ if __name__ == '__main__':
     print("-------------------------------------")
     print("Info:")
     # The name of this training
-    train_name = "{dataset}_T{tdepth}-{twidth}_S{sdepth}-{swidth}_seed{seed}".format(**vars(args))
+    train_name = "kdat-{dataset}_T{tdepth}-{twidth}_S{sdepth}-{swidth}_seed{seed}".format(**vars(args))
     print("Training name: ", train_name)
 
     # The save directory
