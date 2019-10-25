@@ -50,8 +50,10 @@ def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
             tf.math.softmax(t_logits / temp) ,
             tf.math.softmax(s_logits / temp))
 
-    for t_act, s_act in zip(t_acts, s_acts):
-        loss += beta*attention_loss(t_act, s_act)
+    if beta != 0.0:
+        for t_act, s_act in zip(t_acts, s_acts):
+            loss += beta*attention_loss(t_act, s_act)
+
     return loss
 
 def __spatial_attention_map(act_tensor, p=2):
