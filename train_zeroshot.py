@@ -138,7 +138,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         generator.trainable = True
         student.trainable = False
         for ng in range(Config.n_g_in_loop):
-            with tf.GradientTape() as tape:
+            with tf.GradientTape() as gtape:
                 pseudo_imgs = generator(z)
                 t_logits, *t_acts = teacher(pseudo_imgs)
                 s_logits, *_ = student(pseudo_imgs)
@@ -146,7 +146,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 # calculate the generator loss
                 gen_loss = generator_loss_fn(t_logits, s_logits)
                 # The grad for generator
-                grads = tape.gradient(gen_loss, generator.trainable_weights)
+                grads = gtape.gradient(gen_loss, generator.trainable_weights)
                 # clip gradients
                 grads, _ = tf.clip_by_global_norm(grads, 5.0)
                 # update the generator paramter with the gradient
@@ -163,13 +163,13 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         for ns in range(Config.n_s_in_loop):
 
             #t_logits, *t_acts = teacher(pseudo_imgs)
-            with tf.GradientTape() as tape:
-                pseudo_imgs = generator(z)
-                t_logits, *t_acts = teacher(pseudo_imgs)
+            with tf.GradientTape() as stape:
+                #pseudo_imgs = generator(z)
+                #t_logits, *t_acts = teacher(pseudo_imgs)
                 s_logits, *s_acts = student(pseudo_imgs)
                 stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
                 # The grad for student
-                grads = tape.gradient(stu_loss, student.trainable_weights)
+                grads = stape.gradient(stu_loss, student.trainable_weights)
                 # clip gradients
                 grads, _ = tf.clip_by_global_norm(grads, 5.0)
                 # Apply grad for student
@@ -180,7 +180,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         s_loss = stu_loss_met.result().numpy()
         g_loss = g_loss_met.result().numpy()
 
-        if iter_ % 50 == 0:
+        if iter_ % 5 == 0:
             print('step %s | generator mean loss = %s | studnt mean loss = %s' % (iter_, g_loss, s_loss))
 
         if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
