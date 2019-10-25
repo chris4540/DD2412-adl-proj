@@ -5,11 +5,13 @@ Baseline algorithm to compare
 Ref:
 https://github.com/keras-team/keras/issues/9459#issuecomment-469282443
 https://www.tensorflow.org/guide/keras/custom_layers_and_models
+https://github.com/tensorflow/tensorflow/issues/30596
 
 TODO:
     - utils like accuracy etc.
     - code refactoring
     - code tidy up
+    - Consider to use tf.function
 """
 import tensorflow as tf
 # Must run this in order to have similar behaviour as TF2.0
