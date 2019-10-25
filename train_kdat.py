@@ -9,6 +9,7 @@ https://www.tensorflow.org/guide/keras/custom_layers_and_models
 TODO:
     - utils like accuracy etc.
     - code refactoring
+    - code tidy up
 """
 import tensorflow as tf
 # Must run this in order to have similar behaviour as TF2.0
@@ -20,6 +21,7 @@ from utils.preprocess import to_categorical
 from utils.losses import student_loss_fn
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Model
@@ -32,6 +34,7 @@ import sys
 from tqdm import tqdm
 import utils
 import numpy as np
+import time
 
 class Config:
     """
@@ -41,7 +44,8 @@ class Config:
     input_shape = (32, 32, 3)
     batch_size = 128
     # We need to have 80k iterations for cifar 10
-    epochs = math.ceil(80000 * batch_size / 50000)
+    epochs = 200  # easier for comparsion
+    total_iteration = 80000
     momentum = 0.9
     weight_decay = 5e-4
     init_lr = 0.1
@@ -108,7 +112,7 @@ if __name__ == '__main__':
     print("-------------------------------------")
     print("Info:")
     # The name of this training
-    train_name = "kdat-{dataset}_T{tdepth}-{twidth}_S{sdepth}-{swidth}_seed{seed}".format(**vars(args))
+    train_name = "kdat-m{sample_per_class}-{dataset}_T{tdepth}-{twidth}_S{sdepth}-{swidth}_seed{seed}".format(**vars(args))
     print("Training name: ", train_name)
 
     # The save directory
@@ -119,20 +123,34 @@ if __name__ == '__main__':
     print("Save dir: ", savedir)
     utils.mkdir(savedir)
 
+    #
+    print('sample_per_class:', args.sample_per_class)
+
     # print out config
     for attr, v in vars(Config).items():
         if attr.startswith('__'):
             continue
         print(attr, ": ", v)
+
+    # calculate iterations
+    iter_per_epoch = math.ceil(Config.total_iteration / Config.epochs)
+    print("Iteration per epoch: ", iter_per_epoch)
+
     print("-------------------------------------")
+
 
     # ===================================
     # Go to have training
     # load cifar 10, sampling if need
     # TODO: make a for SVHN
     (x_train, y_train_lbl), (x_test, y_test_lbl) = get_cifar10_data()
-    if args.sample_per_class <= 5000:
+    if args.sample_per_class < 5000:
         x_train, y_train_lbl = balance_sampling(x_train, y_train_lbl, data_per_class=args.sample_per_class)
+
+    # For evaluation
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_lbl)).batch(200)
+    # y_test = to_categorical(y_test_lbl)
+    y_train = to_categorical(y_train_lbl)
 
     # load teacher
     teacher = WideResidualNetwork(
@@ -142,33 +160,42 @@ if __name__ == '__main__':
     # load from the hdf5 file. Use train_scratch to train it
     teacher.load_weights(args.teacher_weights)
     teacher.trainable = False
+    teacher_acc = evaluate(test_data_loader, teacher)
+    print("teacher_acc = ", teacher_acc)
 
     # make student
-    student = WideResidualNetwork(args.sdepth, args.swidth, classes=Config.classes,
-                                  input_shape=Config.input_shape,
-                                  has_softmax=False, output_activations=True, weight_decay=Config.weight_decay)
+    student = WideResidualNetwork(
+                args.sdepth, args.swidth,
+                classes=Config.classes,
+                input_shape=Config.input_shape,
+                has_softmax=False, output_activations=True, weight_decay=Config.weight_decay)
+
     # ==========================================================================
     # optimizer, like training from scratch
     optim = tf.keras.optimizers.SGD(learning_rate=lr_schedule(0),
-                                    momentum=Config.momentum,
-                                    nesterov=True)
+                                    momentum=Config.momentum, nesterov=True)
 
     # logging dict
     logging = CustomizedCSVLogger(os.path.join(savedir, 'log_{}.csv'.format(train_name)))
     # Train student
     loss_metric = tf.keras.metrics.Mean()
-    train_data_loader = tf.data.Dataset.from_tensor_slices(x_train).batch(128)
 
-    # For evaluation
-    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_lbl)).batch(200)
-    y_test = to_categorical(y_test_lbl)
+    datagen = ImageDataGenerator(width_shift_range=4, height_shift_range=4,
+                                     horizontal_flip=True, vertical_flip=False,
+                                     rescale=None, fill_mode='reflect')
+    train_dataset_flow = datagen.flow(x_train, batch_size=Config.batch_size, shuffle=True)
 
+
+    best_acc = -np.inf
     for epoch in range(Config.epochs):
+        start_time = time.time()
         # Iterate over the batches of the dataset.
-        for x_batch_train in tqdm(train_data_loader, desc="training", ncols=80):
-        # for x_batch_train in tqdm(train_data_loader):
+        iter_ = 0
+        for x_batch_train in train_dataset_flow:
+
             # no checking on autodiff
             t_logits, *t_acts = teacher(x_batch_train)
+
             # Do forwarding, watch trainable varaibles and record auto grad.
             with tf.GradientTape() as tape:
                 s_logits, *s_acts = student(x_batch_train)
@@ -179,24 +206,42 @@ if __name__ == '__main__':
                 reg_loss = tf.reduce_sum(student.losses)
 
                 # sum them up
-                loss = loss + Config.weight_decay * reg_loss
+                loss = loss + reg_loss
 
                 grads = tape.gradient(loss, student.trainable_weights)
                 optim.apply_gradients(zip(grads, student.trainable_weights))
 
                 loss_metric(loss)
 
-
+            iter_ += 1
+            if iter_ >= iter_per_epoch:
+                break
+            if iter_ % 100 == 0:
+                print("iter: {}, Avg. Loss = {}".format(iter_,loss_metric.result().numpy()))
+        # ----------------------------------------------------------------------
         epoch_loss = loss_metric.result().numpy()
         test_acc = evaluate(test_data_loader, student)
 
         row_dict = {
+            'duration': time.time() - start_time,
             'epoch': epoch,
             'loss': epoch_loss,
             'test_acc': test_acc
         }
-        print("Epoch {epoch}: Loss = {loss}, test_acc = {test_acc}".format(**row_dict))
+        print("Epoch {epoch}: duration = {duration};"
+              "Loss = {loss}, test_acc = {test_acc}".format(**row_dict))
         logging.log(**row_dict)
 
         # reset metrics
         loss_metric.reset_states()
+
+        # ------------------------------------------------------------------
+        if test_acc > best_acc:
+            print("{} is better then {}".format(test_acc, best_acc))
+            print("Saving file: {} ....".format(best_acc))
+            # save down the model
+            model_wght_file = train_name + "_model.{}.h5".format(epoch)
+            student.save_weights(model_wght_file)
+
+            # update the best acc
+            best_acc = test_acc
