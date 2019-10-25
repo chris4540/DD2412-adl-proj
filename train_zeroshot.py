@@ -145,9 +145,9 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
                 # calculate the generator loss
                 gen_loss = generator_loss_fn(t_logits, s_logits)
-
                 # The grad for generator
                 grads = tape.gradient(gen_loss, generator.trainable_weights)
+                # clip gradients
                 grads, _ = tf.clip_by_global_norm(grads, 5.0)
                 # update the generator paramter with the gradient
                 generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
@@ -164,11 +164,13 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
             #t_logits, *t_acts = teacher(pseudo_imgs)
             with tf.GradientTape() as tape:
+                pseudo_imgs = generator(z)
+                t_logits, *t_acts = teacher(pseudo_imgs)
                 s_logits, *s_acts = student(pseudo_imgs)
                 stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
-
                 # The grad for student
                 grads = tape.gradient(stu_loss, student.trainable_weights)
+                # clip gradients
                 grads, _ = tf.clip_by_global_norm(grads, 5.0)
                 # Apply grad for student
                 student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
