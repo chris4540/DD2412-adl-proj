@@ -125,7 +125,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     # Generator loss metrics
     g_loss_met = tf.keras.metrics.Mean()
     # Student loss metrics
-    stu_loss_met = tf.keras.metrics.Mean()
+    s_loss_met = tf.keras.metrics.Mean()
 
     #Test data
     (_, _), (x_test, y_test) = get_cifar10_data()
@@ -143,6 +143,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         # Generator training
         generator.trainable = True
         student.trainable = False
+        loss = 0
         for ng in range(Config.n_g_in_loop):
             # ----------------------------------------------------------------
             with tf.GradientTape() as tape:
@@ -150,11 +151,11 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 t_logits, *t_acts = teacher(pseudo_imgs, training=False)
                 s_logits, *_ = student(pseudo_imgs, training=False)
                 # calculate the generator loss
-                gen_loss = generator_loss_fn(t_logits, s_logits)
+                loss = generator_loss_fn(t_logits, s_logits)
             # ----------------------------------------------------------------
 
             # The grad for generator
-            grads = tape.gradient(gen_loss, generator.trainable_weights)
+            grads = tape.gradient(loss, generator.trainable_weights)
 
             # clip gradients to advoid large jump
             grads, _ = tf.clip_by_global_norm(grads, 5.0)
@@ -162,7 +163,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
             # update the generator paramter with the gradient
             generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
 
-            g_loss_met(gen_loss)
+            g_loss_met(loss)
 
 
         # ==========================================================================
@@ -170,15 +171,16 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         # Student training
         generator.trainable = False
         student.trainable = True
+        loss = 0
         for ns in range(Config.n_s_in_loop):
 
             # ----------------------------------------------------------------
             with tf.GradientTape() as tape:
                 s_logits, *s_acts = student(pseudo_imgs, training=True)
-                stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+                loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
             # ----------------------------------------------------------------
             # The grad for student
-            grads = tape.gradient(stu_loss, student.trainable_weights)
+            grads = tape.gradient(loss, student.trainable_weights)
 
             # clip gradients to advoid large jump
             grads, _ = tf.clip_by_global_norm(grads, 5.0)
@@ -186,7 +188,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
             # Apply grad for student
             student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
 
-            stu_loss_met(stu_loss)
+            s_loss_met(loss)
         # --------------------------------------------------------------------
         iter_etime = time.time()
 
@@ -199,7 +201,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
         time_per_epoch = iter_etime - iter_stime
 
-        s_loss = stu_loss_met.result().numpy()
+        s_loss = s_loss_met.result().numpy()
         g_loss = g_loss_met.result().numpy()
         row_dict = {
             'time_per_epoch': time_per_epoch,
@@ -226,7 +228,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         #         generator.save_weights(generator_filepath)
         #         student.save_weights(student_filepath)
 
-        stu_loss_met.reset_states()
+        s_loss_met.reset_states()
         g_loss_met.reset_states()
 
 def evaluate(data_loader, model, output_activations=True):
