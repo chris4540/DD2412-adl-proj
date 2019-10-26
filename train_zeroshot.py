@@ -1,10 +1,7 @@
 """
 Pesudo code for  Zero-shot KT
-
 for 1..N; do  // outer loop
-
     * Sampling a seed `z`
-
     // loop for training generator to produce an adversarial example between teacher
     // and student.
     for 1..n_g; do
@@ -12,13 +9,11 @@ for 1..N; do  // outer loop
         * Update the parameters of NavieGenerator
             s.t. student and teacher has the largest discrepancy (in terms of KD-Div)
     done
-
     // Train student for the adversarial example
     for 1..n_s; do
         * Align teacher and student with standard KD-AT
     done
 done
-
 TODO:
     1. Add regularization_loss: https://stackoverflow.com/q/56693863
 """

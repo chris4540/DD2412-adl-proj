@@ -1,10 +1,8 @@
 """
 The generator use to provide a training sample that teacher and students has
 the most difference estimation distribution.
-
 TODO:
     Understand how this structure comes
-
 Quote:
     We use a generic generator with only three convolutional layers,
     and our input noise z has 100 dimensions
@@ -18,7 +16,6 @@ from tensorflow.keras.layers import LeakyReLU
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import Reshape
 from tensorflow.keras.layers import UpSampling2D
-
 
 # def NavieGenerator(input_dim=100):
 #     model = tf.keras.Sequential()
@@ -43,6 +40,7 @@ from tensorflow.keras.layers import UpSampling2D
 #     model.add(BatchNormalization())
 #     assert model.output_shape == (None, 32, 32, 3)
 #     return model
+
 def NavieGenerator(input_dim=100):
     model = tf.keras.Sequential()
     model.add(Dense(8 * 8 * 128, input_shape=(input_dim,)))
