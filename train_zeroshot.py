@@ -39,8 +39,6 @@ import argparse
 from tqdm import tqdm
 import pprint
 import time
-# import collections
-
 
 # TODO: use Config class
 class Config:
@@ -124,6 +122,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
     # Generator loss metrics
     g_loss_met = tf.keras.metrics.Mean()
+
     # Student loss metrics
     s_loss_met = tf.keras.metrics.Mean()
 
@@ -137,6 +136,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     for iter_ in range(Config.n_outer_loop):
         iter_stime = time.time()
 
+        max_s_grad_norm = 0
+        max_g_grad_norm = 0
         # sample from latern space to have an image
         z = tf.random.normal([Config.batch_size, Config.z_dim])
 
@@ -158,7 +159,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
             grads = tape.gradient(loss, generator.trainable_weights)
 
             # clip gradients to advoid large jump
-            grads, _ = tf.clip_by_global_norm(grads, 5.0)
+            grads, g_grad_norm = tf.clip_by_global_norm(grads, 10.0)
+            max_g_grad_norm = max(max_g_grad_norm, g_grad_norm.numpy())
 
             # update the generator paramter with the gradient
             generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
@@ -183,7 +185,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
             grads = tape.gradient(loss, student.trainable_weights)
 
             # clip gradients to advoid large jump
-            grads, _ = tf.clip_by_global_norm(grads, 5.0)
+            grads, s_grad_norm = tf.clip_by_global_norm(grads, 5.0)
+            max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
 
             # Apply grad for student
             student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
@@ -210,6 +213,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
             'student_kd_loss': s_loss,
             'teacher_pred_dist': t_pred_distri,
             'student_pred_dist': s_pred_distri,
+            'max_g_grad_norm': max_g_grad_norm,
+            'max_s_grad_norm': max_s_grad_norm,
         }
         pprint.pprint(row_dict)
         # ======================================================================
