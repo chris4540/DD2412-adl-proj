@@ -17,7 +17,6 @@ from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import Reshape
 from tensorflow.keras.layers import UpSampling2D
 
-
 # def NavieGenerator(input_dim=100):
 #     model = tf.keras.Sequential()
 #     model.add(Dense(8 * 8 * 128, input_shape=(input_dim,)))
@@ -41,6 +40,7 @@ from tensorflow.keras.layers import UpSampling2D
 #     model.add(BatchNormalization())
 #     assert model.output_shape == (None, 32, 32, 3)
 #     return model
+
 def NavieGenerator(input_dim=100):
     model = tf.keras.Sequential()
     model.add(Dense(8 * 8 * 128, input_shape=(input_dim,)))
