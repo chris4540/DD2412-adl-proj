@@ -36,6 +36,7 @@ import numpy as np
 import os
 import argparse
 from tqdm import tqdm
+import pprint
 
 
 # TODO: use Config class
@@ -70,6 +71,12 @@ class Config:
 def mkdir(dirname):
     save_dir = os.path.join(os.getcwd(), dirname)
     os.makedirs(save_dir, exist_ok=True)
+
+
+def logits_to_distribution(logits):
+    cls, cnt = np.unique(np.argmax(logits, axis=-1), return_counts=True)
+    ret = dict(zip(cls, cnt))
+    return ret
 
 
 def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, savedir='zeroshot', dataset='cifar10'):
@@ -172,7 +179,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 """
                 Attention Loss is tiny even after *250
                 which makes same loss for gen and student with reverse sign
-                kld goes to 0 in some runs (even after setting seed that is odd)
+                kld goes to 0 after some iterations (even after setting seed it happens only sometimes that is odd)
+
                 """
 
                 # The grad for student
@@ -184,10 +192,21 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
                 stu_loss_met(stu_loss)
 
+        t_pred_distri = logits_to_distribution(t_logits)
+        s_pred_distri = logits_to_distribution(s_logits)
+
         s_loss = stu_loss_met.result().numpy()
         g_loss = g_loss_met.result().numpy()
 
         if iter_ % 5 == 0:
+            row_dict = {
+            'epoch': iter_,
+            'generator_loss': g_loss,
+            'student_kd_loss': s_loss,
+            'teacher_pred_dist': t_pred_distri,
+            'student_pred_dist': s_pred_distri,
+            }
+            pprint.pprint(row_dict)
             print('step %s | generator mean loss = %s | studnt mean loss = %s' % (iter_, g_loss, s_loss))
 
         if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
