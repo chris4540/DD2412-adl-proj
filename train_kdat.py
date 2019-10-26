@@ -5,15 +5,26 @@ Baseline algorithm to compare
 Ref:
 https://github.com/keras-team/keras/issues/9459#issuecomment-469282443
 https://www.tensorflow.org/guide/keras/custom_layers_and_models
+https://github.com/tensorflow/tensorflow/issues/30596
 
 TODO:
     - utils like accuracy etc.
     - code refactoring
     - code tidy up
+    - Consider to use tf.function
 """
 import tensorflow as tf
 # Must run this in order to have similar behaviour as TF2.0
 tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
+import argparse
+import os
+# from tqdm import tqdm
+from os.path import join
+import math
+import sys
+import utils
+import time
+import numpy as np
 from net.wide_resnet import WideResidualNetwork
 from utils.preprocess import get_cifar10_data
 from utils.preprocess import balance_sampling
@@ -26,15 +37,6 @@ from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import normalize
-import argparse
-import os
-from os.path import join
-import math
-import sys
-from tqdm import tqdm
-import utils
-import numpy as np
-import time
 
 class Config:
     """
@@ -84,14 +86,13 @@ def get_arg_parser():
 def evaluate(data_loader, model, output_logits=True, output_activations=True):
     total = 0
     correct = 0
-    for inputs, labels in tqdm(data_loader):
+    for inputs, labels in data_loader:
         if output_activations:
             out, *_ = model(inputs, training=False)
         else:
             out = model(inputs, training=False)
 
         prob = tf.math.softmax(out, axis=-1)
-        # prob = prob.numpy()
 
         pred = tf.argmax(prob, axis=-1)
         equality = tf.equal(pred, tf.reshape(labels, [-1]))
@@ -135,7 +136,6 @@ if __name__ == '__main__':
     # calculate iterations
     iter_per_epoch = math.ceil(Config.total_iteration / Config.epochs)
     print("Iteration per epoch: ", iter_per_epoch)
-
     print("-------------------------------------")
 
 
@@ -188,20 +188,34 @@ if __name__ == '__main__':
 
     best_acc = -np.inf
     for epoch in range(Config.epochs):
-        start_time = time.time()
         # Iterate over the batches of the dataset.
+
+        # start time
+        epoch_start_time = time.time()
+        s_train_time = 0
+        t_eval_time = 0
+
+        # iteration counter
         iter_ = 0
+
+        # learning rate
+        lr = lr_schedule(epoch)
+        optim.learning_rate = lr
         for x_batch_train in train_dataset_flow:
 
             # no checking on autodiff
-            t_logits, *t_acts = teacher(x_batch_train)
+            eval_stime = time.time()
+            t_logits, *t_acts = teacher(x_batch_train, training=False)
+            t_eval_time += time.time() - eval_stime
 
             # Do forwarding, watch trainable varaibles and record auto grad.
             with tf.GradientTape() as tape:
-                s_logits, *s_acts = student(x_batch_train)
+                train_stime = time.time()
+                s_logits, *s_acts = student(x_batch_train, training=True)
 
                 # The loss itself
                 loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+
                 # The L2 weighting regularization loss
                 reg_loss = tf.reduce_sum(student.losses)
 
@@ -211,6 +225,7 @@ if __name__ == '__main__':
                 grads = tape.gradient(loss, student.trainable_weights)
                 optim.apply_gradients(zip(grads, student.trainable_weights))
 
+                s_train_time += time.time() - train_stime
                 loss_metric(loss)
 
             iter_ += 1
@@ -223,12 +238,15 @@ if __name__ == '__main__':
         test_acc = evaluate(test_data_loader, student)
 
         row_dict = {
-            'duration': time.time() - start_time,
+            'duration': time.time() - epoch_start_time,
             'epoch': epoch,
             'loss': epoch_loss,
-            'test_acc': test_acc
+            'test_acc': test_acc,
+            'l_rate': lr,
+            'teacher_eval_time': t_eval_time,
+            'student_train_time': s_train_time,
         }
-        print("Epoch {epoch}: duration = {duration};"
+        print("Epoch {epoch}: duration = {duration}; l_rate = {l_rate}; "
               "Loss = {loss}, test_acc = {test_acc}".format(**row_dict))
         logging.log(**row_dict)
 
@@ -236,12 +254,13 @@ if __name__ == '__main__':
         loss_metric.reset_states()
 
         # ------------------------------------------------------------------
-        if test_acc > best_acc:
+        if (test_acc > best_acc) and epoch > 10:
             print("{} is better then {}".format(test_acc, best_acc))
-            print("Saving file: {} ....".format(best_acc))
+
             # save down the model
             model_wght_file = train_name + "_model.{}.h5".format(epoch)
-            student.save_weights(model_wght_file)
+            print("Saving file: {} ....".format(model_wght_file))
+            student.save_weights(os.path.join(savedir, model_wght_file))
 
             # update the best acc
             best_acc = test_acc
