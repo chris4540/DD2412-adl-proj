@@ -145,13 +145,10 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 pseudo_imgs = generator(z, training=True)
                 t_logits, *t_acts = teacher(pseudo_imgs, training=False)
                 s_logits, *_ = student(pseudo_imgs, training=False)
+            # ----------------------------------------------------------------
 
                 # calculate the generator loss
                 gen_loss = generator_loss_fn(t_logits, s_logits)
-            # ----------------------------------------------------------------
-            #    Attention Loss is tiny even after *250
-            #    which makes same loss for gen and student with reverse sign
-            #    kld goes to 0 in some runs (even after setting seed that is odd)
 
             # The grad for generator
             grads = tape.gradient(gen_loss, generator.trainable_weights)
