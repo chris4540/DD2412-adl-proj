@@ -37,6 +37,7 @@ import numpy as np
 import os
 import argparse
 from tqdm import tqdm
+import pprint
 # import collections
 
 
@@ -130,8 +131,9 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(50)
 
 
-    for iter_ in range(Config.n_outer_loop):
     # for iter_ in tqdm(range(Config.n_outer_loop), desc="Global Training Loop"):
+    for iter_ in range(Config.n_outer_loop):
+        iter_stime = time.time()
 
         # sample from latern space to have an image
         z = tf.random.normal([Config.batch_size, Config.z_dim])
@@ -178,6 +180,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
             student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
 
             stu_loss_met(stu_loss)
+        # --------------------------------------------------------------------
+        iter_etime = time.time()
 
         # cls, cnt = np.unique(np.argmax(t_logits, axis=-1), return_counts=True)
         # print(dict(zip(cls, cnt)))
@@ -186,19 +190,20 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         t_pred_distri = logits_to_distribution(t_logits)
         s_pred_distri = logits_to_distribution(s_logits)
 
+        time_per_epoch = iter_etime - iter_stime,
+
 
         s_loss = stu_loss_met.result().numpy()
         g_loss = g_loss_met.result().numpy()
         row_dict = {
+            'time_per_epoch': time_per_epoch,
             'epoch': iter_,
             'generator_loss': g_loss,
             'student_kd_loss': s_loss,
             'teacher_pred_dist': t_pred_distri,
             'student_pred_dist': s_pred_distri,
         }
-        print('step %s-%s' % (iter_, ns),
-        "gen_loss: {generator_loss}; student_loss {student_loss}")
-
+        pprint.pprint(row_dict)
         # ======================================================================
         if iter_ % 100 == 0:
             # calculate acc
@@ -228,7 +233,6 @@ def evaluate(data_loader, model, output_activations=True):
             out = model(inputs, training=False)
 
         prob = tf.math.softmax(out, axis=-1)
-        # prob = prob.numpy()
 
         pred = tf.argmax(prob, axis=-1)
         equality = tf.equal(pred, tf.reshape(labels, [-1]))
