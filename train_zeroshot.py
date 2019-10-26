@@ -142,15 +142,13 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         z = tf.random.normal([Config.batch_size, Config.z_dim])
 
         # Generator training
-        generator.trainable = True
-        student.trainable = False
         loss = 0
         for ng in range(Config.n_g_in_loop):
             # ----------------------------------------------------------------
             with tf.GradientTape() as tape:
                 pseudo_imgs = generator(z, training=True)
                 t_logits, *t_acts = teacher(pseudo_imgs, training=False)
-                s_logits, *_ = student(pseudo_imgs, training=False)
+                s_logits, *_ = student(pseudo_imgs, training=True)
                 # calculate the generator loss
                 loss = generator_loss_fn(t_logits, s_logits)
             # ----------------------------------------------------------------
@@ -159,7 +157,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
             grads = tape.gradient(loss, generator.trainable_weights)
 
             # clip gradients to advoid large jump
-            grads, g_grad_norm = tf.clip_by_global_norm(grads, 10.0)
+            grads, g_grad_norm = tf.clip_by_global_norm(grads, 5.0)
             max_g_grad_norm = max(max_g_grad_norm, g_grad_norm.numpy())
 
             # update the generator paramter with the gradient
@@ -171,11 +169,10 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         # ==========================================================================
 
         # Student training
-        generator.trainable = False
-        student.trainable = True
+        pseudo_imgs = generator(z, training=True)
+        t_logits, *t_acts = teacher(pseudo_imgs, training=False)
         loss = 0
         for ns in range(Config.n_s_in_loop):
-
             # ----------------------------------------------------------------
             with tf.GradientTape() as tape:
                 s_logits, *s_acts = student(pseudo_imgs, training=True)
