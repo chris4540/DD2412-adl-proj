@@ -81,9 +81,9 @@ def mkdir(dirname):
 def train_gen(generator, g_optim, z_val, teacher, student):
     # ----------------------------------------------------------------
     with tf.GradientTape() as tape:
-        pseudo_imgs = generator(z_val)
-        t_logits, *t_acts = teacher(pseudo_imgs)
-        s_logits, *_ = student(pseudo_imgs)
+        pseudo_imgs = generator(z_val, training=True)
+        t_logits, *t_acts = teacher(pseudo_imgs, training=False)
+        s_logits, *_ = student(pseudo_imgs, training=False)
         # calculate the generator loss
         loss = generator_loss_fn(t_logits, s_logits)
     # ----------------------------------------------------------------
@@ -107,7 +107,7 @@ def train_student(pseudo_imgs, s_optim, t_logits, t_acts, student):
     # t_logits, *t_acts = teacher(pseudo_imgs, training=False)
     # ----------------------------------------------------------------
     with tf.GradientTape() as tape:
-        s_logits, *s_acts = student(pseudo_imgs)
+        s_logits, *s_acts = student(pseudo_imgs, training=True)
         loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
     # ----------------------------------------------------------------
     # The grad for student
@@ -123,7 +123,7 @@ def train_student(pseudo_imgs, s_optim, t_logits, t_acts, student):
 
 @tf.function
 def prepare_train_student(generator, z_val, teacher):
-    pseudo_imgs = generator(z_val)
+    pseudo_imgs = generator(z_val, training=False)
     t_logits, *t_acts = teacher(pseudo_imgs, training=False)
     return pseudo_imgs, t_logits, t_acts
 
@@ -182,8 +182,6 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(50)
 
     teacher.trainable = False
-    student.trainable = True
-    generator.trainable = True
     # ==========================================================================
 
     # for iter_ in tqdm(range(Config.n_outer_loop), desc="Global Training Loop"):
@@ -220,7 +218,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         # cls, cnt = np.unique(np.argmax(s_logits, axis=-1), return_counts=True)
         # print(dict(zip(cls, cnt)))
 
-        if iter_ % 100 == 0:
+        # if iter_ % 100 == 0:
+        if True:
             t_pred_distri = logits_to_distribution(t_logits)
             s_pred_distri = logits_to_distribution(s_logits)
 
@@ -237,10 +236,12 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 'student_pred_dist': s_pred_distri,
                 'max_g_grad_norm': max_g_grad_norm,
                 'max_s_grad_norm': max_s_grad_norm,
+                's_optim_lr': s_optim.learning_rate(iter_*Config.n_s_in_loop),
+                'g_optim_lr': g_optim.learning_rate(iter_)
             }
             pprint.pprint(row_dict)
         # ======================================================================
-        if iter_ % 200 == 0:
+        if iter_ % 100 == 0:
             # calculate acc
             test_accuracy = evaluate(test_data_loader, student)
             row_dict['test_acc'] = test_accuracy
