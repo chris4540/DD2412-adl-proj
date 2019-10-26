@@ -38,6 +38,7 @@ import os
 import argparse
 from tqdm import tqdm
 import pprint
+import time
 # import collections
 
 
@@ -70,8 +71,9 @@ class Config:
     #weight_decay = 5e-4
 
 def logits_to_distribution(logits):
-    cls, cnt = np.unique(np.argmax(t_logits, axis=-1), return_counts=True)
+    cls, cnt = np.unique(np.argmax(logits, axis=-1), return_counts=True)
     ret = dict(zip(cls, cnt))
+    return ret
 
 def mkdir(dirname):
     save_dir = os.path.join(os.getcwd(), dirname)
@@ -190,7 +192,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         t_pred_distri = logits_to_distribution(t_logits)
         s_pred_distri = logits_to_distribution(s_logits)
 
-        time_per_epoch = iter_etime - iter_stime,
+        time_per_epoch = iter_etime - iter_stime
 
 
         s_loss = stu_loss_met.result().numpy()
@@ -205,7 +207,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         }
         pprint.pprint(row_dict)
         # ======================================================================
-        if iter_ % 100 == 0:
+        if iter_ % 50 == 0:
             # calculate acc
             test_accuracy = evaluate(test_data_loader, student)
             row_dict['test_acc'] = test_accuracy
