@@ -1,12 +1,9 @@
 """
 Baseline algorithm to compare
-
-
 Ref:
 https://github.com/keras-team/keras/issues/9459#issuecomment-469282443
 https://www.tensorflow.org/guide/keras/custom_layers_and_models
 https://github.com/tensorflow/tensorflow/issues/30596
-
 TODO:
     - utils like accuracy etc.
     - code refactoring
@@ -56,7 +53,6 @@ class Config:
 def lr_schedule(epoch):
     """
     Although we do not change parameters, hard coding is a very bad habbit.
-
     # of operations < 20 is negligible when we have 30s per epoch.
     """
     init_lr = Config.init_lr

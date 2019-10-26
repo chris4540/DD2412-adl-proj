@@ -1,10 +1,7 @@
 """
 Pesudo code for  Zero-shot KT
-
 for 1..N; do  // outer loop
-
     * Sampling a seed `z`
-
     // loop for training generator to produce an adversarial example between teacher
     // and student.
     for 1..n_g; do
@@ -12,18 +9,17 @@ for 1..N; do  // outer loop
         * Update the parameters of NavieGenerator
             s.t. student and teacher has the largest discrepancy (in terms of KD-Div)
     done
-
     // Train student for the adversarial example
     for 1..n_s; do
         * Align teacher and student with standard KD-AT
     done
 done
-
 TODO:
     1. Add regularization_loss: https://stackoverflow.com/q/56693863
 """
 import tensorflow as tf
-tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
+# tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
+tf.enable_v2_behavior()
 from utils.seed import set_seed
 from net.generator import NavieGenerator
 from utils.losses import student_loss_fn, generator_loss_fn
@@ -37,6 +33,8 @@ import os
 import argparse
 from tqdm import tqdm
 import pprint
+import time
+# import collections
 
 
 # TODO: use Config class
@@ -62,26 +60,24 @@ class Config:
     student_init_lr = 2e-3
     generator_init_lr = 1e-3
 
-    # generator 
-    save_models_at = 800
+    # generator
+    # save_models_at = 800
 
     #weight_decay = 5e-4
-
-
-def mkdir(dirname):
-    save_dir = os.path.join(os.getcwd(), dirname)
-    os.makedirs(save_dir, exist_ok=True)
-
 
 def logits_to_distribution(logits):
     cls, cnt = np.unique(np.argmax(logits, axis=-1), return_counts=True)
     ret = dict(zip(cls, cnt))
     return ret
 
+def mkdir(dirname):
+    save_dir = os.path.join(os.getcwd(), dirname)
+    os.makedirs(save_dir, exist_ok=True)
+
 
 def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, savedir='zeroshot', dataset='cifar10'):
 
-    set_seed(seed)
+    #set_seed(seed)
 
     model_config = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
     #model_name = '%s_model.h5' % model_config
@@ -111,32 +107,30 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                                   output_activations=True,
                                   has_softmax=False)
 
-    # student_optimizer = Adam(learning_rate=CosineDecay(
-    #                             Config.student_init_lr,
-    #                             decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
-
-    student_optimizer = Adam(Config.student_init_lr)
+    student_optimizer = Adam(learning_rate=CosineDecay(
+                                Config.student_init_lr,
+                                decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
     ## Generator
     generator = NavieGenerator(input_dim=Config.z_dim)
     ## TODO: double check the annuealing setting
-    # generator_optimizer = Adam(learning_rate=CosineDecay(
-    #                             Config.generator_init_lr,
-    #                             decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
-
-    generator_optimizer = Adam(Config.generator_init_lr)
+    generator_optimizer = Adam(learning_rate=CosineDecay(
+                                Config.generator_init_lr,
+                                decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
 
     # Generator loss metrics
     g_loss_met = tf.keras.metrics.Mean()
     # Student loss metrics
-    stu_loss_met = tf.keras.metrics.Mean()
+    s_loss_met = tf.keras.metrics.Mean()
 
     #Test data
     (_, _), (x_test, y_test) = get_cifar10_data()
 
-    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(200)
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(50)
 
 
-    for iter_ in tqdm(range(Config.n_outer_loop), desc="Global Training Loop"):
+    # for iter_ in tqdm(range(Config.n_outer_loop), desc="Global Training Loop"):
+    for iter_ in range(Config.n_outer_loop):
+        iter_stime = time.time()
 
         # sample from latern space to have an image
         z = tf.random.normal([Config.batch_size, Config.z_dim])
@@ -144,91 +138,92 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         # Generator training
         generator.trainable = True
         student.trainable = False
+        loss = 0
         for ng in range(Config.n_g_in_loop):
-            with tf.GradientTape() as gtape:
-                pseudo_imgs = generator(z)
-                t_logits, *t_acts = teacher(pseudo_imgs)
-                s_logits, *_ = student(pseudo_imgs)
-
+            # ----------------------------------------------------------------
+            with tf.GradientTape() as tape:
+                pseudo_imgs = generator(z, training=True)
+                t_logits, *t_acts = teacher(pseudo_imgs, training=False)
+                s_logits, *_ = student(pseudo_imgs, training=False)
                 # calculate the generator loss
-                gen_loss = generator_loss_fn(t_logits, s_logits)
-                # The grad for generator
-                grads = gtape.gradient(gen_loss, generator.trainable_weights)
-                # clip gradients
-                grads, _ = tf.clip_by_global_norm(grads, 5.0)
-                # update the generator paramter with the gradient
-                generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
+                loss = generator_loss_fn(t_logits, s_logits)
+            # ----------------------------------------------------------------
 
-                g_loss_met(gen_loss)
-                    
+            # The grad for generator
+            grads = tape.gradient(loss, generator.trainable_weights)
+
+            # clip gradients to advoid large jump
+            grads, _ = tf.clip_by_global_norm(grads, 5.0)
+
+            # update the generator paramter with the gradient
+            generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
+
+            g_loss_met(loss)
+
 
         # ==========================================================================
 
         # Student training
         generator.trainable = False
         student.trainable = True
+        loss = 0
         for ns in range(Config.n_s_in_loop):
 
-            #t_logits, *t_acts = teacher(pseudo_imgs)
-            with tf.GradientTape() as stape:
-                #pseudo_imgs = generator(z)
-                #t_logits, *t_acts = teacher(pseudo_imgs)
-                s_logits, *s_acts = student(pseudo_imgs)
-                stu_loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+            # ----------------------------------------------------------------
+            with tf.GradientTape() as tape:
+                s_logits, *s_acts = student(pseudo_imgs, training=True)
+                loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+            # ----------------------------------------------------------------
+            # The grad for student
+            grads = tape.gradient(loss, student.trainable_weights)
 
-                """
-                Attention Loss is tiny even after *250
-                which makes same loss for gen and student with reverse sign
-                kld goes to 0 after some iterations (even after setting seed it happens only sometimes that is odd)
+            # clip gradients to advoid large jump
+            grads, _ = tf.clip_by_global_norm(grads, 5.0)
 
-                """
+            # Apply grad for student
+            student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
 
-                # The grad for student
-                grads = stape.gradient(stu_loss, student.trainable_weights)
-                # clip gradients
-                grads, _ = tf.clip_by_global_norm(grads, 5.0)
-                # Apply grad for student
-                student_optimizer.apply_gradients(zip(grads, student.trainable_weights))
+            s_loss_met(loss)
+        # --------------------------------------------------------------------
+        iter_etime = time.time()
 
-                stu_loss_met(stu_loss)
-
+        # cls, cnt = np.unique(np.argmax(t_logits, axis=-1), return_counts=True)
+        # print(dict(zip(cls, cnt)))
+        # cls, cnt = np.unique(np.argmax(s_logits, axis=-1), return_counts=True)
+        # print(dict(zip(cls, cnt)))
         t_pred_distri = logits_to_distribution(t_logits)
         s_pred_distri = logits_to_distribution(s_logits)
 
-        s_loss = stu_loss_met.result().numpy()
-        g_loss = g_loss_met.result().numpy()
+        time_per_epoch = iter_etime - iter_stime
 
-        if iter_ % 5 == 0:
-            row_dict = {
+        s_loss = s_loss_met.result().numpy()
+        g_loss = g_loss_met.result().numpy()
+        row_dict = {
+            'time_per_epoch': time_per_epoch,
             'epoch': iter_,
             'generator_loss': g_loss,
             'student_kd_loss': s_loss,
             'teacher_pred_dist': t_pred_distri,
             'student_pred_dist': s_pred_distri,
-            }
-            pprint.pprint(row_dict)
-            print('step %s | generator mean loss = %s | studnt mean loss = %s' % (iter_, g_loss, s_loss))
-
-        if (iter_ + 1) % (Config.n_outer_loop/200) == 0:
+        }
+        pprint.pprint(row_dict)
+        # ======================================================================
+        if iter_ % 50 == 0:
+            # calculate acc
             test_accuracy = evaluate(test_data_loader, student)
-            row_dict = {
-                'epoch': iter_,
-                'generator_loss': g_loss,
-                'student_loss': s_loss,
-                'test_acc': test_accuracy
-            }
+            row_dict['test_acc'] = test_accuracy
             logger.log(**row_dict)
             print('Test Accuracy: ', test_accuracy)
 
-        if (iter_ + 1) % Config.save_models_at == 0:
-                generator_name = '%s_generator_itr_%d.h5' % (model_config, iter_)
-                generator_filepath = os.path.join(save_dir, generator_name)
-                student_name = '%s_student_itr_%d.h5' % (model_config, iter_)
-                student_filepath = os.path.join(save_dir, student_name)
-                generator.save_weights(generator_filepath)
-                student.save_weights(student_filepath)
+        # if (iter_ + 1) % Config.save_models_at == 0:
+        #         generator_name = '%s_generator_itr_%d.h5' % (model_config, iter_)
+        #         generator_filepath = os.path.join(save_dir, generator_name)
+        #         student_name = '%s_student_itr_%d.h5' % (model_config, iter_)
+        #         student_filepath = os.path.join(save_dir, student_name)
+        #         generator.save_weights(generator_filepath)
+        #         student.save_weights(student_filepath)
 
-        stu_loss_met.reset_states()
+        s_loss_met.reset_states()
         g_loss_met.reset_states()
 
 def evaluate(data_loader, model, output_activations=True):
@@ -241,7 +236,6 @@ def evaluate(data_loader, model, output_activations=True):
             out = model(inputs, training=False)
 
         prob = tf.math.softmax(out, axis=-1)
-        # prob = prob.numpy()
 
         pred = tf.argmax(prob, axis=-1)
         equality = tf.equal(pred, tf.reshape(labels, [-1]))
