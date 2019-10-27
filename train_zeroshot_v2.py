@@ -186,14 +186,26 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(50)
 
     teacher.trainable = False
+
+    # checkpoint
+    chkpt_dict = {
+        'teacher': teacher,
+        'student': student,
+        'generator': generator,
+        's_optim': s_optim,
+        'g_optim': g_optim
+    }
+    # Saving checkpoint
+    ckpt = tf.train.Checkpoint(**chkpt_dict)
+    ckpt_manager = tf.train.CheckpointManager(ckpt, os.path.join(savedir, 'chpt'), max_to_keep=2)
     # ==========================================================================
 
     # for iter_ in tqdm(range(Config.n_outer_loop), desc="Global Training Loop"):
     for iter_ in range(Config.n_outer_loop):
         iter_stime = time.time()
 
-        max_s_grad_norm = 0
-        max_g_grad_norm = 0
+        # max_s_grad_norm = 0
+        # max_g_grad_norm = 0
         # sample from latern space to have an image
         z_val = tf.function(tf.random.normal)([Config.batch_size, Config.z_dim])
 
@@ -201,7 +213,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         loss = 0
         for ng in range(Config.n_g_in_loop):
             loss, g_grad_norm = train_gen(generator, g_optim, z_val, teacher, student)
-            max_g_grad_norm = max(max_g_grad_norm, g_grad_norm.numpy())
+            # max_g_grad_norm = max(max_g_grad_norm, g_grad_norm.numpy())
             g_loss_met(loss)
 
         # ==========================================================================
@@ -211,7 +223,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
         for ns in range(Config.n_s_in_loop):
             loss, s_grad_norm, s_logits = train_student(pseudo_imgs, s_optim, t_logits, t_acts, student)
-            max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
+            # max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
 
             n_cls_t_pred = len(np.unique(np.argmax(t_logits, axis=-1)))
             n_cls_s_pred = len(np.unique(np.argmax(s_logits, axis=-1)))
@@ -222,8 +234,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         # --------------------------------------------------------------------
         iter_etime = time.time()
 
-        # if iter_ % 100 == 0:
-        if True:
+        if iter_ % 100 == 0:
             n_cls_t_pred_avg = n_cls_t_pred_metric.result().numpy()
             n_cls_s_pred_avg = n_cls_s_pred_metric.result().numpy()
             time_per_epoch =  iter_etime - iter_stime
@@ -237,27 +248,23 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 'student_kd_loss': s_loss,
                 'n_cls_t_pred_avg': n_cls_t_pred_avg,
                 'n_cls_s_pred_avg': n_cls_s_pred_avg,
-                'max_g_grad_norm': max_g_grad_norm,
-                'max_s_grad_norm': max_s_grad_norm,
+                # 'max_g_grad_norm': max_g_grad_norm,
+                # 'max_s_grad_norm': max_s_grad_norm,
                 's_optim_lr': s_optim.learning_rate(iter_*Config.n_s_in_loop).numpy(),
                 'g_optim_lr': g_optim.learning_rate(iter_).numpy()
             }
             pprint.pprint(row_dict)
         # ======================================================================
-        if iter_ % 100 == 0:
+        if iter_!= 0 and iter_ % 100 == 0:
             # calculate acc
             test_accuracy = evaluate(test_data_loader, student).numpy()
             row_dict['test_acc'] = test_accuracy
             logger.log(**row_dict)
             print('Test Accuracy: ', test_accuracy)
 
-        # if (iter_ + 1) % Config.save_models_at == 0:
-        #         generator_name = '%s_generator_itr_%d.h5' % (model_config, iter_)
-        #         generator_filepath = os.path.join(save_dir, generator_name)
-        #         student_name = '%s_student_itr_%d.h5' % (model_config, iter_)
-        #         student_filepath = os.path.join(save_dir, student_name)
-        #         generator.save_weights(generator_filepath)
-        #         student.save_weights(student_filepath)
+            ckpt_save_path = ckpt_manager.save()
+            print('Saving checkpoint for epoch {} at {}'.format(
+                                                iter_+1, ckpt_save_path))
 
         s_loss_met.reset_states()
         g_loss_met.reset_states()
