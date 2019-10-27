@@ -57,7 +57,7 @@ class Config:
     # The weigting of the attention term
     beta = 250
     # The number of steps of the outer loop. The "N" in Algorithm 1
-    n_outer_loop = math.ceil(80000 / 11)
+    n_outer_loop = 80000
 
     # init learing rates
     student_init_lr = 2e-3
@@ -195,7 +195,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         max_s_grad_norm = 0
         max_g_grad_norm = 0
         # sample from latern space to have an image
-        z_val = tf.random.normal([Config.batch_size, Config.z_dim])
+        z_val = tf.function(tf.random.normal)([Config.batch_size, Config.z_dim])
 
         # Generator training
         loss = 0
@@ -208,9 +208,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
         # Student training
         loss = 0
-
+        pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
         for ns in range(Config.n_s_in_loop):
-            pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
             loss, s_grad_norm, s_logits = train_student(pseudo_imgs, s_optim, t_logits, t_acts, student)
             max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
 
@@ -220,22 +219,14 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
             s_loss_met(loss)
             n_cls_t_pred_metric(n_cls_t_pred)
             n_cls_s_pred_metric(n_cls_s_pred)
-
         # --------------------------------------------------------------------
         iter_etime = time.time()
 
-        # cls, cnt = np.unique(np.argmax(t_logits, axis=-1), return_counts=True)
-        # print(dict(zip(cls, cnt)))
-        # cls, cnt = np.unique(np.argmax(s_logits, axis=-1), return_counts=True)
-        # print(dict(zip(cls, cnt)))
-
         # if iter_ % 100 == 0:
         if True:
-            # t_pred_distri = logits_to_distribution(t_logits)
-            # s_pred_distri = logits_to_distribution(s_logits)
             n_cls_t_pred_avg = n_cls_t_pred_metric.result().numpy()
             n_cls_s_pred_avg = n_cls_s_pred_metric.result().numpy()
-            time_per_epoch =  iter_stime
+            time_per_epoch =  iter_etime - iter_stime
 
             s_loss = s_loss_met.result().numpy()
             g_loss = g_loss_met.result().numpy()
@@ -244,8 +235,6 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 'epoch': iter_,
                 'generator_loss': g_loss,
                 'student_kd_loss': s_loss,
-                # 'teacher_pred_dist': t_pred_distri,
-                # 'student_pred_dist': s_pred_distri,
                 'n_cls_t_pred_avg': n_cls_t_pred_avg,
                 'n_cls_s_pred_avg': n_cls_s_pred_avg,
                 'max_g_grad_norm': max_g_grad_norm,
@@ -257,7 +246,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
         # ======================================================================
         if iter_ % 100 == 0:
             # calculate acc
-            test_accuracy = evaluate(test_data_loader, student)
+            test_accuracy = evaluate(test_data_loader, student).numpy()
             row_dict['test_acc'] = test_accuracy
             logger.log(**row_dict)
             print('Test Accuracy: ', test_accuracy)
@@ -275,7 +264,7 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
 def evaluate(data_loader, model, output_activations=True):
     total = 0
-    correct = 0
+    correct = 0.0
     for inputs, labels in tqdm(data_loader):
         if output_activations:
             out, *_ = model(inputs, training=False)
@@ -286,11 +275,13 @@ def evaluate(data_loader, model, output_activations=True):
 
         pred = tf.argmax(prob, axis=-1)
         equality = tf.equal(pred, tf.reshape(labels, [-1]))
-        correct += tf.reduce_sum(tf.cast(equality, tf.float32))
-        total += equality.shape[0]
+        correct = correct + tf.reduce_sum(tf.cast(equality, tf.float32))
+        total = total + tf.size(equality)
 
-    ret = correct / tf.cast(total, tf.float32)
-    return ret.numpy()
+    total = tf.cast(total, tf.float32)
+    ret = correct / total
+    return ret
+
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
