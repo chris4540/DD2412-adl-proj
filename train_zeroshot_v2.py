@@ -177,8 +177,8 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     s_loss_met = tf.keras.metrics.Mean()
 
     #
-    n_cls_t_pred = tf.keras.metrics.Mean()
-    n_cls_s_pred = tf.keras.metrics.Mean()
+    n_cls_t_pred_metric = tf.keras.metrics.Mean()
+    n_cls_s_pred_metric = tf.keras.metrics.Mean()
 
     #Test data
     (_, _), (x_test, y_test) = get_cifar10_data()
