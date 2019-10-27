@@ -119,7 +119,7 @@ def train_student(pseudo_imgs, s_optim, t_logits, t_acts, student):
 
     # Apply grad for student
     s_optim.apply_gradients(zip(grads, student.trainable_weights))
-    return loss, s_grad_norm, t_logits, s_logits
+    return loss, s_grad_norm, s_logits
 
 @tf.function
 def prepare_train_student(generator, z_val, teacher):
@@ -176,6 +176,10 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
     # Student loss metrics
     s_loss_met = tf.keras.metrics.Mean()
 
+    #
+    n_cls_t_pred = tf.keras.metrics.Mean()
+    n_cls_s_pred = tf.keras.metrics.Mean()
+
     #Test data
     (_, _), (x_test, y_test) = get_cifar10_data()
 
@@ -207,9 +211,16 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
         for ns in range(Config.n_s_in_loop):
             pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
-            loss, s_grad_norm, t_logits, s_logits = train_student(pseudo_imgs, s_optim, t_logits, t_acts, student)
+            loss, s_grad_norm, s_logits = train_student(pseudo_imgs, s_optim, t_logits, t_acts, student)
             max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
+
+            n_cls_t_pred = len(np.unique(np.argmax(t_logits, axis=-1)))
+            n_cls_s_pred = len(np.unique(np.argmax(s_logits, axis=-1)))
+            # logging
             s_loss_met(loss)
+            n_cls_t_pred_metric(n_cls_t_pred)
+            n_cls_s_pred_metric(n_cls_s_pred)
+
         # --------------------------------------------------------------------
         iter_etime = time.time()
 
@@ -220,10 +231,11 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
         # if iter_ % 100 == 0:
         if True:
-            t_pred_distri = logits_to_distribution(t_logits)
-            s_pred_distri = logits_to_distribution(s_logits)
-
-            time_per_epoch = iter_etime - iter_stime
+            # t_pred_distri = logits_to_distribution(t_logits)
+            # s_pred_distri = logits_to_distribution(s_logits)
+            n_cls_t_pred_avg = n_cls_t_pred_metric.result().numpy()
+            n_cls_s_pred_avg = n_cls_s_pred_metric.result().numpy()
+            time_per_epoch =  iter_stime
 
             s_loss = s_loss_met.result().numpy()
             g_loss = g_loss_met.result().numpy()
@@ -232,12 +244,14 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
                 'epoch': iter_,
                 'generator_loss': g_loss,
                 'student_kd_loss': s_loss,
-                'teacher_pred_dist': t_pred_distri,
-                'student_pred_dist': s_pred_distri,
+                # 'teacher_pred_dist': t_pred_distri,
+                # 'student_pred_dist': s_pred_distri,
+                'n_cls_t_pred_avg': n_cls_t_pred_avg,
+                'n_cls_s_pred_avg': n_cls_s_pred_avg,
                 'max_g_grad_norm': max_g_grad_norm,
                 'max_s_grad_norm': max_s_grad_norm,
-                's_optim_lr': s_optim.learning_rate(iter_*Config.n_s_in_loop),
-                'g_optim_lr': g_optim.learning_rate(iter_)
+                's_optim_lr': s_optim.learning_rate(iter_*Config.n_s_in_loop).numpy(),
+                'g_optim_lr': g_optim.learning_rate(iter_).numpy()
             }
             pprint.pprint(row_dict)
         # ======================================================================
