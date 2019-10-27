@@ -39,7 +39,7 @@ import argparse
 from tqdm import tqdm
 import pprint
 import time
-
+import math
 # TODO: use Config class
 class Config:
     """
@@ -57,7 +57,7 @@ class Config:
     # The weigting of the attention term
     beta = 250
     # The number of steps of the outer loop. The "N" in Algorithm 1
-    n_outer_loop = 80000
+    n_outer_loop = math.ceil(80000 / 11)
 
     # init learing rates
     student_init_lr = 2e-3
@@ -83,7 +83,7 @@ def train_gen(generator, g_optim, z_val, teacher, student):
     with tf.GradientTape() as tape:
         pseudo_imgs = generator(z_val, training=True)
         t_logits, *t_acts = teacher(pseudo_imgs, training=False)
-        s_logits, *_ = student(pseudo_imgs, training=False)
+        s_logits, *_ = student(pseudo_imgs, training=True)
         # calculate the generator loss
         loss = generator_loss_fn(t_logits, s_logits)
     # ----------------------------------------------------------------
@@ -123,7 +123,7 @@ def train_student(pseudo_imgs, s_optim, t_logits, t_acts, student):
 
 @tf.function
 def prepare_train_student(generator, z_val, teacher):
-    pseudo_imgs = generator(z_val, training=False)
+    pseudo_imgs = generator(z_val, training=True)
     t_logits, *t_acts = teacher(pseudo_imgs, training=False)
     return pseudo_imgs, t_logits, t_acts
 
@@ -204,9 +204,9 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
         # Student training
         loss = 0
-        pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
 
         for ns in range(Config.n_s_in_loop):
+            pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
             loss, s_grad_norm, t_logits, s_logits = train_student(pseudo_imgs, s_optim, t_logits, t_acts, student)
             max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
             s_loss_met(loss)
