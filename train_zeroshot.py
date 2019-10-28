@@ -23,11 +23,11 @@ TODO:
     1. Add regularization_loss: https://stackoverflow.com/q/56693863
 """
 import tensorflow as tf
-# tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 tf.enable_v2_behavior()
 from utils.seed import set_seed
 from net.generator import NavieGenerator
-from utils.losses import student_loss_fn, generator_loss_fn
+from utils.losses import student_loss_fn
+from utils.losses import generator_loss_fn
 from utils.preprocess import get_cifar10_data
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import Adam
@@ -41,7 +41,10 @@ import pprint
 import time
 import math
 from collections import OrderedDict
-# TODO: use Config class
+from utils import mkdir
+from os.path import join
+
+
 class Config:
     """
     This config should be static as we follow the paper
@@ -64,19 +67,12 @@ class Config:
     student_init_lr = 2e-3
     generator_init_lr = 1e-3
 
-    # generator
-    # save_models_at = 800
-
-    #weight_decay = 5e-4
 
 def logits_to_distribution(logits):
     cls, cnt = np.unique(np.argmax(logits, axis=-1), return_counts=True)
     ret = dict(zip(cls, cnt))
     return ret
 
-def mkdir(dirname):
-    save_dir = os.path.join(os.getcwd(), dirname)
-    os.makedirs(save_dir, exist_ok=True)
 
 @tf.function
 def train_gen(generator, g_optim, z_val, teacher, student):
@@ -137,13 +133,14 @@ def zeroshot_train(t_depth, t_width, teacher_weights, s_depth=16, s_width=1,
     train_name = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
     log_filename = train_name + '_training_log.csv'
 
+    # save dir
     if not savedir:
         savedir = 'zeroshot' + train_name
-    save_dir = os.path.join(os.getcwd(), savedir)
-    mkdir(save_dir)
+    full_savedir = os.path.join(os.getcwd(), savedir)
+    mkdir(full_savedir)
 
     #model_filepath = os.path.join(save_dir, model_name)
-    log_filepath = os.path.join(save_dir, log_filename)
+    log_filepath = os.path.join(full_savedir, log_filename)
     logger = CustomizedCSVLogger(log_filepath)
 
     ## Teacher
@@ -269,6 +266,9 @@ def zeroshot_train(t_depth, t_width, teacher_weights, s_depth=16, s_width=1,
             ckpt_save_path = ckpt_manager.save()
             print('Saving checkpoint for epoch {} at {}'.format(
                                                 iter_+1, ckpt_save_path))
+
+            generator.save_weights(join(full_savedir, "generator_i{}.h5".format(iter_)))
+            student.save_weights(join(full_savedir, "student_i{}.h5".format(iter_)))
 
         s_loss_met.reset_states()
         g_loss_met.reset_states()
