@@ -24,6 +24,7 @@ class CustomizedCSVLogger:
 
     def log_with_order(self, ordered_dict):
         assert isinstance(ordered_dict, collections.OrderedDict)
+
         if not self.headers:
             self.headers = list(ordered_dict.keys())
         self._write(ordered_dict)

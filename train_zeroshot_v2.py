@@ -40,6 +40,7 @@ from tqdm import tqdm
 import pprint
 import time
 import math
+from collections import OrderedDict
 # TODO: use Config class
 class Config:
     """
@@ -241,25 +242,26 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
             s_loss = s_loss_met.result().numpy()
             g_loss = g_loss_met.result().numpy()
-            row_dict = {
-                'time_per_epoch': time_per_epoch,
-                'epoch': iter_,
-                'generator_loss': g_loss,
-                'student_kd_loss': s_loss,
-                'n_cls_t_pred_avg': n_cls_t_pred_avg,
-                'n_cls_s_pred_avg': n_cls_s_pred_avg,
-                # 'max_g_grad_norm': max_g_grad_norm,
-                # 'max_s_grad_norm': max_s_grad_norm,
-                's_optim_lr': s_optim.learning_rate(iter_*Config.n_s_in_loop).numpy(),
-                'g_optim_lr': g_optim.learning_rate(iter_).numpy()
-            }
+
+            # build ordered dict
+            row_dict = OrderedDict()
+
+            row_dict['time_per_epoch'] = time_per_epoch
+            row_dict['epoch'] = iter_
+            row_dict['generator_loss'] = g_loss
+            row_dict['student_kd_loss'] = s_loss
+            row_dict['n_cls_t_pred_avg'] = n_cls_t_pred_avg
+            row_dict['n_cls_s_pred_avg'] = n_cls_s_pred_avg
+            row_dict['s_optim_lr'] = s_optim.learning_rate(iter_*Config.n_s_in_loop).numpy()
+            row_dict['g_optim_lr'] = g_optim.learning_rate(iter_).numpy()
+
             pprint.pprint(row_dict)
         # ======================================================================
         if iter_!= 0 and iter_ % 100 == 0:
             # calculate acc
             test_accuracy = evaluate(test_data_loader, student).numpy()
             row_dict['test_acc'] = test_accuracy
-            logger.log(**row_dict)
+            logger.log_with_order(**row_dict)
             print('Test Accuracy: ', test_accuracy)
 
             ckpt_save_path = ckpt_manager.save()
