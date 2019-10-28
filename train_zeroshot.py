@@ -64,6 +64,9 @@ class Config:
     n_outer_loop = 80000
     # n_outer_loop = 8000
 
+    # clip grad
+    clip_grad = 8.0
+
     # print freq
     print_freq = 20
 
@@ -97,7 +100,7 @@ def train_gen(generator, g_optim, z_val, teacher, student):
 
     # clip gradients to advoid large jump
     # g_grad_norm = 0
-    grads, g_grad_norm = tf.clip_by_global_norm(grads, 5.0)
+    grads, g_grad_norm = tf.clip_by_global_norm(grads, Config.clip_grad)
 
     # update the generator paramter with the gradient
     g_optim.apply_gradients(zip(grads, generator.trainable_weights))
@@ -119,7 +122,7 @@ def train_student(pseudo_imgs, s_optim, t_logits, t_acts, student):
     grads = tape.gradient(loss, student.trainable_weights)
 
     # clip gradients to advoid large jump
-    grads, s_grad_norm = tf.clip_by_global_norm(grads, 5.0)
+    grads, s_grad_norm = tf.clip_by_global_norm(grads, Config.clip_grad)
 
 
     # Apply grad for student
