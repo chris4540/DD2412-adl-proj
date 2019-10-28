@@ -62,6 +62,16 @@ class Config:
     beta = 250
     # The number of steps of the outer loop. The "N" in Algorithm 1
     n_outer_loop = 80000
+    # n_outer_loop = 8000
+
+    # clip grad
+    clip_grad = 8.0
+
+    # print freq
+    print_freq = 20
+
+    # log freq
+    log_freq = 100
 
     # init learing rates
     student_init_lr = 2e-3
@@ -89,7 +99,8 @@ def train_gen(generator, g_optim, z_val, teacher, student):
     grads = tape.gradient(loss, generator.trainable_weights)
 
     # clip gradients to advoid large jump
-    grads, g_grad_norm = tf.clip_by_global_norm(grads, 5.0)
+    # g_grad_norm = 0
+    grads, g_grad_norm = tf.clip_by_global_norm(grads, Config.clip_grad)
 
     # update the generator paramter with the gradient
     g_optim.apply_gradients(zip(grads, generator.trainable_weights))
@@ -111,8 +122,8 @@ def train_student(pseudo_imgs, s_optim, t_logits, t_acts, student):
     grads = tape.gradient(loss, student.trainable_weights)
 
     # clip gradients to advoid large jump
-    grads, s_grad_norm = tf.clip_by_global_norm(grads, 5.0)
-    # max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
+    grads, s_grad_norm = tf.clip_by_global_norm(grads, Config.clip_grad)
+
 
     # Apply grad for student
     s_optim.apply_gradients(zip(grads, student.trainable_weights))
@@ -180,6 +191,9 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
     n_cls_t_pred_metric = tf.keras.metrics.Mean()
     n_cls_s_pred_metric = tf.keras.metrics.Mean()
 
+    max_g_grad_norm_metric = tf.keras.metrics.Mean()
+    max_s_grad_norm_metric = tf.keras.metrics.Mean()
+
     #Test data
     (_, _), (x_test, y_test) = get_cifar10_data()
 
@@ -204,8 +218,8 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
     for iter_ in range(Config.n_outer_loop):
         iter_stime = time.time()
 
-        # max_s_grad_norm = 0
-        # max_g_grad_norm = 0
+        max_s_grad_norm = 0
+        max_g_grad_norm = 0
         # sample from latern space to have an image
         z_val = tf.function(tf.random.normal)([Config.batch_size, Config.z_dim])
 
@@ -213,7 +227,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
         loss = 0
         for ng in range(Config.n_g_in_loop):
             loss, g_grad_norm = train_gen(generator, g_optim, z_val, teacher, student)
-            # max_g_grad_norm = max(max_g_grad_norm, g_grad_norm.numpy())
+            max_g_grad_norm = max(max_g_grad_norm, g_grad_norm.numpy())
             g_loss_met(loss)
 
         # ==========================================================================
@@ -223,7 +237,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
         for ns in range(Config.n_s_in_loop):
             pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
             loss, s_grad_norm, s_logits = train_student(pseudo_imgs, s_optim, t_logits, t_acts, student)
-            # max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
+            max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
 
             n_cls_t_pred = len(np.unique(np.argmax(t_logits, axis=-1)))
             n_cls_s_pred = len(np.unique(np.argmax(s_logits, axis=-1)))
@@ -233,14 +247,18 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
             n_cls_s_pred_metric(n_cls_s_pred)
         # --------------------------------------------------------------------
         iter_etime = time.time()
+        max_g_grad_norm_metric(max_g_grad_norm)
+        max_s_grad_norm_metric(max_s_grad_norm)
 
-        if iter_ % 100 == 0:
+        if iter_ != 0 and iter_ % Config.print_freq == 0:
             n_cls_t_pred_avg = n_cls_t_pred_metric.result().numpy()
             n_cls_s_pred_avg = n_cls_s_pred_metric.result().numpy()
             time_per_epoch =  iter_etime - iter_stime
 
             s_loss = s_loss_met.result().numpy()
             g_loss = g_loss_met.result().numpy()
+            max_g_grad_norm_avg = max_g_grad_norm_metric.result().numpy()
+            max_s_grad_norm_avg = max_s_grad_norm_metric.result().numpy()
 
             # build ordered dict
             row_dict = OrderedDict()
@@ -251,12 +269,14 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
             row_dict['student_kd_loss'] = s_loss
             row_dict['n_cls_t_pred_avg'] = n_cls_t_pred_avg
             row_dict['n_cls_s_pred_avg'] = n_cls_s_pred_avg
+            row_dict['max_g_grad_norm_avg'] = max_g_grad_norm_avg
+            row_dict['max_s_grad_norm_avg'] = max_s_grad_norm_avg
             row_dict['s_optim_lr'] = s_optim.learning_rate(iter_*Config.n_s_in_loop).numpy()
             row_dict['g_optim_lr'] = g_optim.learning_rate(iter_).numpy()
 
             pprint.pprint(row_dict)
         # ======================================================================
-        if iter_!= 0 and iter_ % 100 == 0:
+        if iter_!= 0 and iter_ % Config.log_freq == 0:
             # calculate acc
             test_accuracy = evaluate(test_data_loader, student).numpy()
             row_dict['test_acc'] = test_accuracy
@@ -267,11 +287,15 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
             print('Saving checkpoint for epoch {} at {}'.format(
                                                 iter_+1, ckpt_save_path))
 
+            s_loss_met.reset_states()
+            g_loss_met.reset_states()
+            max_g_grad_norm_metric.reset_states()
+            max_s_grad_norm_metric.reset_states()
+
+        if iter_!= 0 and iter_ % 5000 == 0:
             generator.save_weights(join(full_savedir, "generator_i{}.h5".format(iter_)))
             student.save_weights(join(full_savedir, "student_i{}.h5".format(iter_)))
 
-            s_loss_met.reset_states()
-            g_loss_met.reset_states()
 
 def evaluate(data_loader, model, output_activations=True):
     total = 0
