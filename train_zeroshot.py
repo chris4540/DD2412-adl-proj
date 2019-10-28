@@ -267,11 +267,13 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
             print('Saving checkpoint for epoch {} at {}'.format(
                                                 iter_+1, ckpt_save_path))
 
+            s_loss_met.reset_states()
+            g_loss_met.reset_states()
+
+        if iter_!= 0 and iter_ % 5000 == 0:
             generator.save_weights(join(full_savedir, "generator_i{}.h5".format(iter_)))
             student.save_weights(join(full_savedir, "student_i{}.h5".format(iter_)))
 
-            s_loss_met.reset_states()
-            g_loss_met.reset_states()
 
 def evaluate(data_loader, model, output_activations=True):
     total = 0
