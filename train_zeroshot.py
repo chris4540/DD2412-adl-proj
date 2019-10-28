@@ -135,7 +135,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
 
     # save dir
     if not savedir:
-        savedir = 'zeroshot' + train_name
+        savedir = 'zeroshot_' + train_name
     full_savedir = os.path.join(os.getcwd(), savedir)
     mkdir(full_savedir)
 
