@@ -220,8 +220,8 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
 
         # Student training
         loss = 0
-        pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
         for ns in range(Config.n_s_in_loop):
+            pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
             loss, s_grad_norm, s_logits = train_student(pseudo_imgs, s_optim, t_logits, t_acts, student)
             # max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
 
