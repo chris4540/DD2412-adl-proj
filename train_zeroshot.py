@@ -125,7 +125,7 @@ def prepare_train_student(generator, z_val, teacher):
     return pseudo_imgs, t_logits, t_acts
 
 
-def zeroshot_train(t_depth, t_width, teacher_weights, s_depth=16, s_width=1,
+def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
                    seed=42, savedir=None, dataset='cifar10'):
 
     set_seed(seed)
@@ -150,7 +150,7 @@ def zeroshot_train(t_depth, t_width, teacher_weights, s_depth=16, s_width=1,
                                   output_activations=True,
                                   has_softmax=False)
 
-    teacher.load_weights(t_path)
+    teacher.load_weights(t_wght_path)
     teacher.trainable = False
 
     ## Student
@@ -256,7 +256,7 @@ def zeroshot_train(t_depth, t_width, teacher_weights, s_depth=16, s_width=1,
 
             pprint.pprint(row_dict)
         # ======================================================================
-        if iter_!= 0 and iter_ % 500 == 0:
+        if iter_!= 0 and iter_ % 100 == 0:
             # calculate acc
             test_accuracy = evaluate(test_data_loader, student).numpy()
             row_dict['test_acc'] = test_accuracy
@@ -270,8 +270,8 @@ def zeroshot_train(t_depth, t_width, teacher_weights, s_depth=16, s_width=1,
             generator.save_weights(join(full_savedir, "generator_i{}.h5".format(iter_)))
             student.save_weights(join(full_savedir, "student_i{}.h5".format(iter_)))
 
-        s_loss_met.reset_states()
-        g_loss_met.reset_states()
+            s_loss_met.reset_states()
+            g_loss_met.reset_states()
 
 def evaluate(data_loader, model, output_activations=True):
     total = 0
