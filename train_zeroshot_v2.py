@@ -257,11 +257,11 @@ def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, sav
 
             pprint.pprint(row_dict)
         # ======================================================================
-        if iter_!= 0 and iter_ % 100 == 0:
+        if iter_!= 0 and iter_ % 500 == 0:
             # calculate acc
             test_accuracy = evaluate(test_data_loader, student).numpy()
             row_dict['test_acc'] = test_accuracy
-            logger.log_with_order(**row_dict)
+            logger.log_with_order(row_dict)
             print('Test Accuracy: ', test_accuracy)
 
             ckpt_save_path = ckpt_manager.save()
