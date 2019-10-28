@@ -18,13 +18,18 @@ class CustomizedCSVLogger:
 
     def log(self, **kwargs):
 
-        self.row_dict = collections.OrderedDict(kwargs)
+        row_dict = collections.OrderedDict(kwargs)
+
+        self.log_with_order(row_dict)
+
+    def log_with_order(self, ordered_dict):
+        assert isinstance(ordered_dict, collections.OrderedDict)
 
         if not self.headers:
-            self.headers = list(self.row_dict.keys())
-        self._write()
+            self.headers = list(ordered_dict.keys())
+        self._write(ordered_dict)
 
-    def _write(self):
+    def _write(self, row_dict):
         if self._header_written:
             mode = 'a'
         else:
@@ -37,7 +42,7 @@ class CustomizedCSVLogger:
                 writer.writeheader()
                 self._header_written = True
 
-            writer.writerow(self.row_dict)
+            writer.writerow(row_dict)
 
 if __name__ == "__main__":
     logger = CustomizedCSVLogger('test.csv')
