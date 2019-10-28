@@ -129,14 +129,16 @@ def prepare_train_student(generator, z_val, teacher):
     return pseudo_imgs, t_logits, t_acts
 
 
-def zeroshot_train(t_depth, t_width, t_path, s_depth=16, s_width=1, seed=42, savedir='zeroshot', dataset='cifar10'):
+def zeroshot_train(t_depth, t_width, teacher_weights, s_depth=16, s_width=1,
+                   seed=42, savedir=None, dataset='cifar10'):
 
-    #set_seed(seed)
+    set_seed(seed)
 
-    model_config = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
-    #model_name = '%s_model.h5' % model_config
-    log_filename = model_config + '_training_log.csv'
+    train_name = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
+    log_filename = train_name + '_training_log.csv'
 
+    if not savedir:
+        savedir = 'zeroshot' + train_name
     save_dir = os.path.join(os.getcwd(), savedir)
     mkdir(save_dir)
 
@@ -298,8 +300,8 @@ def get_arg_parser():
     parser.add_argument('-tw', '--twidth', type=int, required=True)
     parser.add_argument('-sd', '--sdepth', type=int, required=True)
     parser.add_argument('-sw', '--swidth', type=int, required=True)
-    parser.add_argument('-tpath','--teacherpath', type=str, required=True)
-    parser.add_argument('--savedir', type=str, default='zeroshot')
+    parser.add_argument('-twgt','--teacher_weights', type=str, required=True)
+    parser.add_argument('--savedir', default=None)
     parser.add_argument('--dataset', type=str, default='cifar10')
     parser.add_argument('--seed', type=int, default=10)
     return parser
@@ -308,4 +310,4 @@ def get_arg_parser():
 if __name__ == '__main__':
     parser = get_arg_parser()
     args = parser.parse_args()
-    zeroshot_train(args.tdepth, args.twidth, args.teacherpath, args.sdepth, args.swidth, args.seed, savedir=args.savedir)
+    zeroshot_train(args.tdepth, args.twidth, args.teacher_weights, args.sdepth, args.swidth, args.seed, savedir=args.savedir)
