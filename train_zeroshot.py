@@ -207,15 +207,21 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
         'student': student,
         'generator': generator,
         's_optim': s_optim,
-        'g_optim': g_optim
+        'g_optim': g_optim,
     }
     # Saving checkpoint
     ckpt = tf.train.Checkpoint(**chkpt_dict)
     ckpt_manager = tf.train.CheckpointManager(ckpt, os.path.join(savedir, 'chpt'), max_to_keep=2)
     # ==========================================================================
+    # if a checkpoint exists, restore the latest checkpoint.
+    if ckpt_manager.latest_checkpoint:
+        ckpt.restore(ckpt_manager.latest_checkpoint)
+        print ('Latest checkpoint restored!!')
+        with open(os.path.join(savedir, 'chpt', 'iteration'), 'r') as f:
+            start_iter = int(f.read())
+        logger = CustomizedCSVLogger(log_filepath, append=True)
 
-    # for iter_ in tqdm(range(Config.n_outer_loop), desc="Global Training Loop"):
-    for iter_ in range(Config.n_outer_loop):
+    for iter_ in range(start_iter, Config.n_outer_loop):
         iter_stime = time.time()
 
         max_s_grad_norm = 0
@@ -285,10 +291,11 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
             print('Test Accuracy: ', test_accuracy)
 
             # for check poing
-            chkpt_dict['iter_'] = iter_
             ckpt_save_path = ckpt_manager.save()
             print('Saving checkpoint for epoch {} at {}'.format(
                                                 iter_+1, ckpt_save_path))
+            with open(os.path.join(savedir, 'chpt', 'iteration'), 'w') as f:
+                f.write(str(iter_+1))
 
             s_loss_met.reset_states()
             g_loss_met.reset_states()
