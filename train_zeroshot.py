@@ -68,13 +68,13 @@ class Config:
     clip_grad = 5.0
 
     # print freq
-    print_freq = 20
+    print_freq = 10
 
     # log freq
-    log_freq = 200
+    log_freq = 50
 
     # init learing rates
-    student_init_lr = 1e-3
+    student_init_lr = 2e-3
     generator_init_lr = 1e-3
 
 
@@ -234,8 +234,8 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
 
         # Student training
         loss = 0
-        pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
         for ns in range(Config.n_s_in_loop):
+            pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
             loss, s_grad_norm, s_logits = train_student(pseudo_imgs, s_optim, t_logits, t_acts, student)
             max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
 
