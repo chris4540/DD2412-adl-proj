@@ -139,7 +139,7 @@ def prepare_train_student(generator, z_val, teacher):
 def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
                    seed=42, savedir=None, dataset='cifar10'):
 
-    # set_seed(seed)
+    set_seed(seed)
 
     train_name = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
     log_filename = train_name + '_training_log.csv'
@@ -197,7 +197,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
     #Test data
     (_, _), (x_test, y_test) = get_cifar10_data()
 
-    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(50)
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(200)
 
     teacher.trainable = False
 
@@ -234,8 +234,9 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
 
         # Student training
         loss = 0
+        pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
         for ns in range(Config.n_s_in_loop):
-            pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
+            # pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
             loss, s_grad_norm, s_logits = train_student(pseudo_imgs, s_optim, t_logits, t_acts, student)
             max_s_grad_norm = max(max_s_grad_norm, s_grad_norm.numpy())
 
