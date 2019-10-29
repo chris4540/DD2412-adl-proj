@@ -71,7 +71,7 @@ def get_arg_parser():
     parser.add_argument('-sd', '--sdepth', type=int, required=True)
     parser.add_argument('-sw', '--swidth', type=int, required=True)
     parser.add_argument('-m', '--sample_per_class', type=int, required=True)
-    parser.add_argument('-twghs','--teacher_weights', type=str, required=True,
+    parser.add_argument('-twgt','--teacher_weights', type=str, required=True,
                         help='Teacher weighting hdf5 file')
     parser.add_argument('--savedir', default=None)
     parser.add_argument('--dataset', type=str, default='cifar10')
