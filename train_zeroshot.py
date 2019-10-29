@@ -68,10 +68,10 @@ class Config:
     clip_grad = 8.0
 
     # print freq
-    print_freq = 20
+    print_freq = 100
 
     # log freq
-    log_freq = 100
+    log_freq = 500
 
     # init learing rates
     student_init_lr = 2e-3
