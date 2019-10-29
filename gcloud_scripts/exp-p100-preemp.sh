@@ -10,13 +10,14 @@
 # change the gpu config. See the doc above
 # =================================================
 
-# export ZONE="europe-west4-b"
-export ZONE="europe-west4-c"
 # export ZONE="europe-west4-a"
+export ZONE="europe-west4-b"
+# export ZONE="europe-west4-c"
 export IMAGE_NAME="tf-1-14-cu100-20191004"
-export INSTANCE_NAME="tf-exp-v100-preemp"
+export INSTANCE_NAME="tf-exp-v100-preemp2"
 export INSTANCE_TYPE="n1-highmem-2"
 export GPU_CONFIG="type=nvidia-tesla-v100,count=1"
+export BOOT_DISK_SIZE="100GB"
 
 gcloud compute instances create $INSTANCE_NAME \
   --machine-type=$INSTANCE_TYPE \
@@ -24,6 +25,7 @@ gcloud compute instances create $INSTANCE_NAME \
   --image=$IMAGE_NAME \
   --image-project=deeplearning-platform-release \
   --maintenance-policy=TERMINATE \
+  --boot-disk-size=$BOOT_DISK_SIZE \
   --accelerator=$GPU_CONFIG \
   --metadata="install-nvidia-driver=True" \
   --preemptible
