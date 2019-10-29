@@ -286,9 +286,9 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
 
             # for check poing
             chkpt_dict['iter_'] = iter_
+            ckpt_save_path = ckpt_manager.save()
             print('Saving checkpoint for epoch {} at {}'.format(
                                                 iter_+1, ckpt_save_path))
-            ckpt_save_path = ckpt_manager.save()
 
             s_loss_met.reset_states()
             g_loss_met.reset_states()
