@@ -81,22 +81,23 @@ def get_arg_parser():
     return parser
 
 
+@tf.function
 def forward(model, batch, training):
     logits, *acts = model(batch, training=training)
     return logits, acts
 
+@tf.function
 def train_student(student, batch, t_logits, t_acts):
-    s_logits, *s_acts = student(batch, training=True)
-    # s_logits, *s_acts = student(batch, training=True)
+    with tf.GradientTape() as tape:
+        s_logits, *s_acts = student(batch, training=True)
+        # The loss itself
+        loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
 
-    # The loss itself
-    loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+        # The L2 weighting regularization loss
+        reg_loss = tf.reduce_sum(student.losses)
 
-    # The L2 weighting regularization loss
-    reg_loss = tf.reduce_sum(student.losses)
-
-    # sum them up
-    loss = loss + reg_loss
+        # sum them up
+        loss = loss + reg_loss
 
     grads = tape.gradient(loss, student.trainable_weights)
     optim.apply_gradients(zip(grads, student.trainable_weights))
@@ -211,13 +212,13 @@ if __name__ == '__main__':
             t_eval_time += time.time() - eval_stime
 
             # Do forwarding, watch trainable varaibles and record auto grad.
-            with tf.GradientTape() as tape:
-                train_stime = time.time()
 
-                loss = train_student(student, x_batch_train, t_logits, t_acts)
+            train_stime = time.time()
 
-                s_train_time += time.time() - train_stime
-                loss_metric(loss)
+            loss = train_student(student, x_batch_train, t_logits, t_acts)
+
+            s_train_time += time.time() - train_stime
+            loss_metric(loss)
 
             iter_ += 1
             if iter_ >= iter_per_epoch:
