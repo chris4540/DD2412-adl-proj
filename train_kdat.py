@@ -22,6 +22,7 @@ import utils
 import time
 from collections import OrderedDict
 import numpy as np
+from utils.seed import set_seed
 from net.wide_resnet import WideResidualNetwork
 from utils.eval import evaluate
 from utils.preprocess import get_cifar10_data
@@ -30,11 +31,8 @@ from utils.preprocess import to_categorical
 from utils.losses import student_loss_fn
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import SGD
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.models import Model
-from tensorflow.keras.utils import normalize
+
 
 class Config:
     """
@@ -141,6 +139,8 @@ if __name__ == '__main__':
     print("Iteration per epoch: ", iter_per_epoch)
     print("-------------------------------------")
 
+    # Set seed
+    set_seed(args.seed)
 
     # ===================================
     # Go to have training
