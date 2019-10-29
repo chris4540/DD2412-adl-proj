@@ -61,20 +61,20 @@ class Config:
     # The weigting of the attention term
     beta = 250
     # The number of steps of the outer loop. The "N" in Algorithm 1
-    n_outer_loop = 800
+    n_outer_loop = 80000
     # n_outer_loop = 8000
 
     # clip grad
     clip_grad = 5.0
 
     # print freq
-    print_freq = 1
+    print_freq = 20
 
     # log freq
-    log_freq = 500
+    log_freq = 200
 
     # init learing rates
-    student_init_lr = 3e-3
+    student_init_lr = 1e-3
     generator_init_lr = 1e-3
 
 
