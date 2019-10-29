@@ -11,11 +11,10 @@ TODO:
     - Consider to use tf.function
 """
 import tensorflow as tf
+tf.enable_v2_behavior()
 # Must run this in order to have similar behaviour as TF2.0
-tf.compat.v1.enable_eager_execution(config=None, device_policy=None,execution_mode=None)
 import argparse
 import os
-# from tqdm import tqdm
 from os.path import join
 import math
 import sys
@@ -45,8 +44,8 @@ class Config:
     input_shape = (32, 32, 3)
     batch_size = 128
     # We need to have 80k iterations for cifar 10
-    epochs = 200  # easier for comparsion
     total_iteration = 80000
+    epochs = 200  # easier for comparsion
     momentum = 0.9
     weight_decay = 5e-4
     init_lr = 0.1
@@ -163,7 +162,7 @@ if __name__ == '__main__':
     # load from the hdf5 file. Use train_scratch to train it
     teacher.load_weights(args.teacher_weights)
     teacher.trainable = False
-    teacher_acc = evaluate(test_data_loader, teacher)
+    teacher_acc = evaluate(test_data_loader, teacher).numpy()
     print("teacher_acc = ", teacher_acc)
 
     # make student
@@ -208,17 +207,15 @@ if __name__ == '__main__':
 
             # no checking on autodiff
             eval_stime = time.time()
-            # t_logits, *t_acts = teacher(x_batch_train, training=False)
             t_logits, t_acts = forward(teacher, x_batch_train, training=False)
             t_eval_time += time.time() - eval_stime
 
             # Do forwarding, watch trainable varaibles and record auto grad.
 
             train_stime = time.time()
-
             loss = train_student(student, optim, x_batch_train, t_logits, t_acts)
-
             s_train_time += time.time() - train_stime
+
             loss_metric(loss)
 
             iter_ += 1
@@ -228,7 +225,7 @@ if __name__ == '__main__':
                 print("iter: {}, Avg. Loss = {}".format(iter_,loss_metric.result().numpy()))
         # ----------------------------------------------------------------------
         epoch_loss = loss_metric.result().numpy()
-        test_acc = evaluate(test_data_loader, student)
+        test_acc = evaluate(test_data_loader, student).numpy()
 
         row_dict = OrderedDict()
         row_dict['duration'] = time.time() - epoch_start_time
@@ -245,15 +242,18 @@ if __name__ == '__main__':
 
         # reset metrics
         loss_metric.reset_states()
-
         # ------------------------------------------------------------------
-        if (test_acc > best_acc) and epoch > 10:
-            print("{} is better then {}".format(test_acc, best_acc))
-
+        def save_model():
             # save down the model
             model_wght_file = train_name + "_model.{}.h5".format(epoch)
             print("Saving file: {} ....".format(model_wght_file))
             student.save_weights(os.path.join(savedir, model_wght_file))
 
+        if (test_acc > best_acc) and epoch > 10:
+            print("{} is better then {}".format(test_acc, best_acc))
             # update the best acc
             best_acc = test_acc
+
+            save_model()
+        elif epoch == Config.epochs -1:
+            save_model()
