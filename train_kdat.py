@@ -21,6 +21,7 @@ import math
 import sys
 import utils
 import time
+from collections import OrderedDict
 import numpy as np
 from net.wide_resnet import WideResidualNetwork
 from utils.eval import evaluate
@@ -87,7 +88,7 @@ def forward(model, batch, training):
     return logits, acts
 
 @tf.function
-def train_student(student, batch, t_logits, t_acts):
+def train_student(student, optim, batch, t_logits, t_acts):
     with tf.GradientTape() as tape:
         s_logits, *s_acts = student(batch, training=True)
         # The loss itself
@@ -215,7 +216,7 @@ if __name__ == '__main__':
 
             train_stime = time.time()
 
-            loss = train_student(student, x_batch_train, t_logits, t_acts)
+            loss = train_student(student, optim, x_batch_train, t_logits, t_acts)
 
             s_train_time += time.time() - train_stime
             loss_metric(loss)
@@ -229,18 +230,18 @@ if __name__ == '__main__':
         epoch_loss = loss_metric.result().numpy()
         test_acc = evaluate(test_data_loader, student)
 
-        row_dict = {
-            'duration': time.time() - epoch_start_time,
-            'epoch': epoch,
-            'loss': epoch_loss,
-            'test_acc': test_acc,
-            'l_rate': lr,
-            'teacher_eval_time': t_eval_time,
-            'student_train_time': s_train_time,
-        }
+        row_dict = OrderedDict()
+        row_dict['duration'] = time.time() - epoch_start_time
+        row_dict['epoch'] = epoch
+        row_dict['loss'] = epoch_loss
+        row_dict['test_acc'] = test_acc
+        row_dict['l_rate'] = lr
+        row_dict['teacher_eval_time'] = t_eval_time
+        row_dict['student_train_time'] = s_train_time
+
         print("Epoch {epoch}: duration = {duration}; l_rate = {l_rate}; "
               "Loss = {loss}, test_acc = {test_acc}".format(**row_dict))
-        logging.log(**row_dict)
+        logging.log_with_order(row_dict)
 
         # reset metrics
         loss_metric.reset_states()
