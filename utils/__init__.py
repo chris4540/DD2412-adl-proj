@@ -2,6 +2,5 @@ import os
 
 
 def mkdir(dirname):
-    save_dir = os.path.join(os.getcwd(), dirname)
-    os.makedirs(save_dir, exist_ok=True)
-
+    folder = os.path.join(os.getcwd(), dirname)
+    os.makedirs(folder, exist_ok=True)
