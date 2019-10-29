@@ -228,8 +228,8 @@ if __name__ == '__main__':
         test_acc = evaluate(test_data_loader, student).numpy()
 
         row_dict = OrderedDict()
-        row_dict['duration'] = time.time() - epoch_start_time
         row_dict['epoch'] = epoch
+        row_dict['duration'] = time.time() - epoch_start_time
         row_dict['loss'] = epoch_loss
         row_dict['test_acc'] = test_acc
         row_dict['l_rate'] = lr
