@@ -68,7 +68,7 @@ class Config:
     clip_grad = 5.0
 
     # print freq
-    print_freq = 10
+    print_freq = 1
 
     # log freq
     log_freq = 50
@@ -139,7 +139,7 @@ def prepare_train_student(generator, z_val, teacher):
 def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
                    seed=42, savedir=None, dataset='cifar10'):
 
-    set_seed(seed)
+    # set_seed(seed)
 
     train_name = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
     log_filename = train_name + '_training_log.csv'
@@ -221,7 +221,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
         max_s_grad_norm = 0
         max_g_grad_norm = 0
         # sample from latern space to have an image
-        z_val = tf.function(tf.random.normal)([Config.batch_size, Config.z_dim])
+        z_val = tf.random.normal([Config.batch_size, Config.z_dim])
 
         # Generator training
         loss = 0
