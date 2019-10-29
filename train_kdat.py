@@ -23,6 +23,7 @@ import utils
 import time
 import numpy as np
 from net.wide_resnet import WideResidualNetwork
+from utils.eval import evaluate
 from utils.preprocess import get_cifar10_data
 from utils.preprocess import balance_sampling
 from utils.preprocess import to_categorical
@@ -79,24 +80,29 @@ def get_arg_parser():
     parser.add_argument('--seed', type=int, default=10)
     return parser
 
-def evaluate(data_loader, model, output_logits=True, output_activations=True):
-    total = 0
-    correct = 0
-    for inputs, labels in data_loader:
-        if output_activations:
-            out, *_ = model(inputs, training=False)
-        else:
-            out = model(inputs, training=False)
 
-        prob = tf.math.softmax(out, axis=-1)
+def forward(model, batch, training):
+    logits, *acts = model(batch, training=training)
+    return logits, acts
 
-        pred = tf.argmax(prob, axis=-1)
-        equality = tf.equal(pred, tf.reshape(labels, [-1]))
-        correct += tf.reduce_sum(tf.cast(equality, tf.float32))
-        total += equality.shape[0]
+def train_student(student, batch, t_logits, t_acts):
+    s_logits, *s_acts = student(batch, training=True)
+    # s_logits, *s_acts = student(batch, training=True)
 
-    ret = correct / tf.cast(total, tf.float32)
-    return ret.numpy()
+    # The loss itself
+    loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
+
+    # The L2 weighting regularization loss
+    reg_loss = tf.reduce_sum(student.losses)
+
+    # sum them up
+    loss = loss + reg_loss
+
+    grads = tape.gradient(loss, student.trainable_weights)
+    optim.apply_gradients(zip(grads, student.trainable_weights))
+
+    return loss
+
 
 # ============================================================================
 # main
@@ -137,8 +143,7 @@ if __name__ == '__main__':
 
     # ===================================
     # Go to have training
-    # load cifar 10, sampling if need
-    # TODO: make a for SVHN
+    # load cifar 10, sampling if need; TODO: make a for SVHN
     (x_train, y_train_lbl), (x_test, y_test_lbl) = get_cifar10_data()
     if args.sample_per_class < 5000:
         x_train, y_train_lbl = balance_sampling(x_train, y_train_lbl, data_per_class=args.sample_per_class)
@@ -201,25 +206,15 @@ if __name__ == '__main__':
 
             # no checking on autodiff
             eval_stime = time.time()
-            t_logits, *t_acts = teacher(x_batch_train, training=False)
+            # t_logits, *t_acts = teacher(x_batch_train, training=False)
+            t_logits, t_acts = forward(teacher, x_batch_train, training=False)
             t_eval_time += time.time() - eval_stime
 
             # Do forwarding, watch trainable varaibles and record auto grad.
             with tf.GradientTape() as tape:
                 train_stime = time.time()
-                s_logits, *s_acts = student(x_batch_train, training=True)
 
-                # The loss itself
-                loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
-
-                # The L2 weighting regularization loss
-                reg_loss = tf.reduce_sum(student.losses)
-
-                # sum them up
-                loss = loss + reg_loss
-
-                grads = tape.gradient(loss, student.trainable_weights)
-                optim.apply_gradients(zip(grads, student.trainable_weights))
+                loss = train_student(student, x_batch_train, t_logits, t_acts)
 
                 s_train_time += time.time() - train_stime
                 loss_metric(loss)
