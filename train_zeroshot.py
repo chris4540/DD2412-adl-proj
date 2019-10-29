@@ -258,8 +258,9 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
         max_g_grad_norm_metric(max_g_grad_norm)
         max_s_grad_norm_metric(max_s_grad_norm)
         # --------------------------------------------------------------------
+        is_last_epoch = (iter_ == Config.n_outer_loop - 1)
 
-        if iter_!= 0 and (iter_ % Config.print_freq == 0 or iter_ == Config.n_outer_loop-1):
+        if iter_!= 0 and (iter_ % Config.print_freq == 0 or is_last_epoch):
             n_cls_t_pred_avg = n_cls_t_pred_metric.result().numpy()
             n_cls_s_pred_avg = n_cls_s_pred_metric.result().numpy()
             time_per_epoch =  iter_etime - iter_stime
@@ -285,7 +286,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
 
             pprint.pprint(row_dict)
         # ======================================================================
-        if iter_!= 0 and (iter_ % Config.log_freq == 0 or iter_ == Config.n_outer_loop-1):
+        if iter_!= 0 and (iter_ % Config.log_freq == 0 or is_last_epoch):
             # calculate acc
             test_accuracy = evaluate(test_data_loader, student).numpy()
             row_dict['test_acc'] = test_accuracy
@@ -304,7 +305,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
             max_g_grad_norm_metric.reset_states()
             max_s_grad_norm_metric.reset_states()
 
-        if iter_!= 0 and iter_ % 5000 == 0:
+        if iter_!= 0 and (iter_ % 5000 == 0 or is_last_epoch):
             generator.save_weights(join(full_savedir, "generator_i{}.h5".format(iter_)))
             student.save_weights(join(full_savedir, "student_i{}.h5".format(iter_)))
 
