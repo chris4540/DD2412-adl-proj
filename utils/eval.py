@@ -3,7 +3,7 @@ import tensorflow as tf
 def evaluate(data_loader, model, output_activations=True):
     total = 0
     correct = 0.0
-    for inputs, labels in tqdm(data_loader):
+    for inputs, labels in data_loader:
         if output_activations:
             out, *_ = model(inputs, training=False)
         else:
