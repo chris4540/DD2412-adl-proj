@@ -1,9 +1,10 @@
 """
 Refactor from ryan code
 """
-from utils.preprocess import get_cifar10_data
+import tensorflow as tf
+tf.enable_v2_behavior()
 from net.wide_resnet import WideResidualNetwork
-import tensortflow as tf
+from utils.preprocess import get_cifar10_data
 
 if __name__ == "__main__":
     # data
@@ -14,11 +15,19 @@ if __name__ == "__main__":
     # Teacher
     teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3))
     teacher.load_weights('cifar10_WRN-40-2-seed45_model.172.h5')
-    student = WideResidualNetwork(16, 1, input_shape=(32, 32, 3))
-    teacher.load_weights('cifar10_WRN-16-1-seed45_model.171.h5')
 
-    # ========================================================
+    # Student
+    student = WideResidualNetwork(16, 1, input_shape=(32, 32, 3))
+    student.load_weights('cifar10_WRN-16-1-seed45_model.171.h5')
+
+    # make them freeze
     student.trainable = False
     teacher.trainable = False
     # ========================================================
+    # ========================================================
+    # Make prediction
+    t_pred = tf.argmax(teacher(x_test), -1)
+    s_pred = tf.argmax(student(x_test), -1)
 
+    # check if matched
+    common_pred = tf.reshape(tf.where(s_pred == t_pred), [-1])
