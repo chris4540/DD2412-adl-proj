@@ -9,7 +9,8 @@ SAVE_FOLDER=kdat_${CUR_HEAD}
 #     -twgt ~/cifar10_WRN-40-2-seed45_model.172.h5 \
 #     --savedir ${SAVE_FOLDER} --seed 10
 
-python3 train_kdat.py --tdepth=40 --twidth=2 --sdepth=16 --swidth=2 \
+python3 train_kdat_v2.py --tdepth=40 --twidth=2 --sdepth=16 --swidth=2 \
                       -m 200 --savedir=${SAVE_FOLDER} \
+                      --seed 45 \
                       -twghs ~/cifar10_WRN-40-2-seed45_model.172.h5 \
                       --dataset="cifar10"
