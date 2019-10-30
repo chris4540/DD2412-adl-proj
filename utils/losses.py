@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.losses import KLDivergence
 from tensorflow.keras.utils import normalize
 
-def kd_loss(p_true, p_pred):
+def kldiv_loss(p_true, p_pred):
     """
     Kullback Leibler divergence loss
 
@@ -18,7 +18,7 @@ def kd_loss(p_true, p_pred):
 
 def generator_loss_fn(t_logits, s_logits, temp=1):
 
-	loss = kd_loss(
+	loss = kldiv_loss(
             tf.math.softmax(t_logits / temp) ,
             tf.math.softmax(s_logits / temp))
 
@@ -46,7 +46,7 @@ def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
     Return:
         loss
     """
-    loss = kd_loss(
+    loss = kldiv_loss(
             tf.math.softmax(t_logits / temp) ,
             tf.math.softmax(s_logits / temp))
 
