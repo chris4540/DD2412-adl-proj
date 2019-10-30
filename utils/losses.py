@@ -49,7 +49,7 @@ def knowledge_distil_loss_fn(**kwargs):
         ce_loss = 0
 
     # 2. KL Divergence
-    if alpha > 0
+    if alpha > 0.0:
         kl_div_loss = kldiv_loss_fn(
                 tf.math.softmax(t_logits / temp) ,
                 tf.math.softmax(s_logits / temp))

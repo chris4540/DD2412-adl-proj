@@ -28,7 +28,7 @@ from utils.eval import evaluate
 from utils.preprocess import get_cifar10_data
 from utils.preprocess import balance_sampling
 from utils.preprocess import to_categorical
-from utils.losses import student_loss_fn
+from utils.losses import knowledge_distil_loss_fn
 from utils.losses import attention_loss
 from utils.losses import kldiv_loss_fn
 from utils.csvlogger import CustomizedCSVLogger
