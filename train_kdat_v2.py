@@ -29,7 +29,8 @@ from utils.preprocess import get_cifar10_data
 from utils.preprocess import balance_sampling
 from utils.preprocess import to_categorical
 from utils.losses import student_loss_fn
-from utils.losses import kd_loss
+from utils.losses import attention_loss
+from utils.losses import kldiv_loss
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -48,8 +49,9 @@ class Config:
     weight_decay = 5e-4
     init_lr = 0.1
     classes = 10
+    epochs = 205
 
-def lr_schedule(iter, total):
+def lr_schedule(epoch):
     """
     Although we do not change parameters, hard coding is a very bad habbit.
     # of operations < 20 is negligible when we have 30s per epoch.

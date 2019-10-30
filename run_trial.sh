@@ -12,5 +12,5 @@ SAVE_FOLDER=kdat_${CUR_HEAD}
 python3 train_kdat_v2.py --tdepth=40 --twidth=2 --sdepth=16 --swidth=2 \
                       -m 200 --savedir=${SAVE_FOLDER} \
                       --seed 45 \
-                      -twghs ~/cifar10_WRN-40-2-seed45_model.172.h5 \
+                      -twgt ~/cifar10_WRN-40-2-seed45_model.172.h5 \
                       --dataset="cifar10"
