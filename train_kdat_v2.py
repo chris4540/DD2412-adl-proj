@@ -30,7 +30,7 @@ from utils.preprocess import balance_sampling
 from utils.preprocess import to_categorical
 from utils.losses import student_loss_fn
 from utils.losses import attention_loss
-from utils.losses import kldiv_loss
+from utils.losses import kldiv_loss_fn
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -50,6 +50,8 @@ class Config:
     init_lr = 0.1
     classes = 10
     epochs = 205
+    #
+    alpha = 0.1
 
 def lr_schedule(epoch):
     """
@@ -80,11 +82,6 @@ def get_arg_parser():
     parser.add_argument('--seed', type=int, default=10)
     return parser
 
-def cross_entropy(logits, onehot_label):
-    cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
-    ret = cce(onehot_label, logits)
-    return ret
-
 @tf.function
 def forward(model, batch, training):
     logits, *acts = model(batch, training=training)
@@ -96,17 +93,14 @@ def train_student(student, optim, batch, t_logits, t_acts, onehot_label):
     with tf.GradientTape() as tape:
         s_logits, *s_acts = student(batch, training=True)
         # The loss itself
-        loss = (2*0.9*1) * kldiv_loss(
-                tf.math.softmax(t_logits / 1) ,
-                tf.math.softmax(s_logits / 1))
-        loss = loss + (1-0.9)*cross_entropy(s_logits, onehot_label)
-
-        if Config.beta != 0.0:
-            att_loss = 0.0
-            for t_act, s_act in zip(t_acts, s_acts):
-                att_loss += attention_loss(t_act, s_act)
-
-            loss += Config.beta * att_loss
+        loss = knowledge_distil_loss_fn(
+                t_logits=t_logits,
+                t_acts=t_acts,
+                s_logits=s_logits,
+                s_acts=s_acts,
+                onehot_label=onehot_label,
+                alpha=Config.alpha,
+                beta=Config.beta)
         # -------------------------------------------------
         # The L2 weighting regularization loss
         reg_loss = tf.reduce_sum(student.losses)
