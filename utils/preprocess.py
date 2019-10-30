@@ -43,27 +43,6 @@ def get_cifar10_data():
     return (x_train, y_train_labels), (x_test, y_test_labels)
 
 # ==========================================================================
-# FOR VIVEK USE ONLY
-def load_cifar10_data():
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
-
-    x_train = standardize_data(x_train)
-    x_test = standardize_data(x_test)
-
-    # normalized with train mean and std
-    x_train_mean = x_train.mean(axis=0)
-    x_train_std = x_train.std(axis=0)
-
-    # normalize
-    x_train = (x_train - x_train_mean) / x_train_std
-    x_test = (x_test - x_train_mean) / x_train_std
-
-    y_train = to_categorical(y_train)
-    y_test = to_categorical(y_test)
-
-    return (x_train, y_train), (x_test, y_test)
-# ==========================================================================
-
 def balance_sampling(data, lables_, data_per_class=200):
 
     # eps value to increase a bit of acceptance prob
