@@ -51,7 +51,7 @@ class Config:
     classes = 10
     epochs = 205
     #
-    alpha = 0.1
+    alpha = 0.9
 
 def lr_schedule(epoch):
     """
