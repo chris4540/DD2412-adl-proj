@@ -28,7 +28,9 @@ from utils.eval import evaluate
 from utils.preprocess import get_cifar10_data
 from utils.preprocess import balance_sampling
 from utils.preprocess import to_categorical
-from utils.losses import student_loss_fn
+from utils.losses import knowledge_distil_loss_fn
+from utils.losses import attention_loss
+from utils.losses import kldiv_loss_fn
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -43,11 +45,13 @@ class Config:
     batch_size = 128
     # We need to have 80k iterations for cifar 10
     total_iteration = 80000
-    epochs = 200  # easier for comparsion
     momentum = 0.9
     weight_decay = 5e-4
     init_lr = 0.1
     classes = 10
+    epochs = 205
+    #
+    alpha = 0.1
 
 def lr_schedule(epoch):
     """
@@ -78,19 +82,26 @@ def get_arg_parser():
     parser.add_argument('--seed', type=int, default=10)
     return parser
 
-
 @tf.function
 def forward(model, batch, training):
     logits, *acts = model(batch, training=training)
     return logits, acts
 
 @tf.function
-def train_student(student, optim, batch, t_logits, t_acts):
+def train_student(student, optim, batch, t_logits, t_acts, onehot_label):
+    # Do forwarding, watch trainable varaibles and record auto grad.
     with tf.GradientTape() as tape:
         s_logits, *s_acts = student(batch, training=True)
         # The loss itself
-        loss = student_loss_fn(t_logits, t_acts, s_logits, s_acts, Config.beta)
-
+        loss = knowledge_distil_loss_fn(
+                t_logits=t_logits,
+                t_acts=t_acts,
+                s_logits=s_logits,
+                s_acts=s_acts,
+                onehot_label=onehot_label,
+                alpha=Config.alpha,
+                beta=Config.beta)
+        # -------------------------------------------------
         # The L2 weighting regularization loss
         reg_loss = tf.reduce_sum(student.losses)
 
@@ -185,7 +196,7 @@ if __name__ == '__main__':
     datagen = ImageDataGenerator(width_shift_range=4, height_shift_range=4,
                                      horizontal_flip=True, vertical_flip=False,
                                      rescale=None, fill_mode='reflect')
-    train_dataset_flow = datagen.flow(x_train, batch_size=Config.batch_size, shuffle=True)
+    train_dataset_flow = datagen.flow((x_train, y_train), batch_size=Config.batch_size, shuffle=True)
 
 
     best_acc = -np.inf
@@ -203,17 +214,15 @@ if __name__ == '__main__':
         # learning rate
         lr = lr_schedule(epoch)
         optim.learning_rate = lr
-        for x_batch_train in train_dataset_flow:
+        for x_batch_train, y_batch_train in train_dataset_flow:
 
             # no checking on autodiff
             eval_stime = time.time()
             t_logits, t_acts = forward(teacher, x_batch_train, training=False)
             t_eval_time += time.time() - eval_stime
 
-            # Do forwarding, watch trainable varaibles and record auto grad.
-
             train_stime = time.time()
-            loss = train_student(student, optim, x_batch_train, t_logits, t_acts)
+            loss = train_student(student, optim, x_batch_train, t_logits, t_acts, y_batch_train)
             s_train_time += time.time() - train_stime
 
             loss_metric(loss)
