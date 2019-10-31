@@ -11,6 +11,34 @@ from utils.preprocess import balance_sampling
 import numpy as np
 from tqdm import tqdm
 
+class Config:
+    # K adversarial steps on network A
+    adv_steps = 30
+    batch_size = 100
+
+    eta = 1.0
+    n_classes = 10
+
+def get_result(img_input, cls_pred, results):
+    batch_size = tf.size(cls_i)
+    # loop over different classes for perturb
+    for cls_j in range(10):
+        one_hot = tf.one_hot([cls_j]*batch_size, Config.n_classes)
+        x_adv = tf.identity(img_input)
+        for k in range(Config.adv_steps):
+            with tf.GradientTape() as tape:
+                tape.watch(x_adv)
+                s_pred = student(x_adv)
+                t_pred = teacher(x_adv)
+                loss = cat_ce_fn(one_hot, s_pred)
+
+            x_adv -= Config.eta*tape.gradient(loss, x_adv)
+            # save down their predictions
+            cls_prob_s = tf.reduce_max(s_pred * one_hot, axis=1)
+            cls_prob_t = tf.reduce_max(t_pred * one_hot, axis=1)
+            results[k].append((cls_prob_s, cls_prob_t))
+    return results
+
 if __name__ == "__main__":
     # data
     (_, _), (x_test, y_test_labels) = get_cifar10_data()
@@ -60,27 +88,12 @@ if __name__ == "__main__":
     n_match_data = tf.size(cls_preds).numpy()
     print("# of testing data for matching belief = ", n_match_data)
     # -----------------------------------------------------------------
-    data = tf.data.Dataset.from_tensor_slices((selected_x_test, cls_preds)).batch(100)
+    data = tf.data.Dataset.from_tensor_slices((selected_x_test, cls_preds)).batch(Config.batch_size)
     cat_ce_fn = tf.keras.losses.CategoricalCrossentropy()
-    results = {k: [] for k in range(3)}
+    results = {k: [] for k in range(Config.adv_steps)}
     for x, cls_i in tqdm(data):
-        batch_size = int(tf.size(cls_i).numpy())
-        # loop over different classes for perturb
-        for cls_j in range(10):
-            one_hot = tf.one_hot([cls_j]*batch_size, 10)
-            x_adv = tf.identity(x)
-            for k in range(3):
-                with tf.GradientTape() as tape:
-                    tape.watch(x_adv)
-                    s_pred = student(x_adv)
-                    t_pred = teacher(x_adv)
-                    loss = cat_ce_fn(one_hot, s_pred)
+        results = get_result(x, cls_i, results)
 
-                x_adv -= 1*tape.gradient(loss, x_adv)
-                # save down their predictions
-                cls_prob_s = tf.reduce_max(s_pred * one_hot, axis=1)
-                cls_prob_t = tf.reduce_max(t_pred * one_hot, axis=1)
-                results[k].append((cls_prob_s, cls_prob_t))
     # ===========================================================
 
     # mean transition error
