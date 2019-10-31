@@ -56,7 +56,7 @@ def mkdir(dirname):
     os.makedirs(save_dir, exist_ok=True)
 
 
-def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models', is_continue=True):
+def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models', is_continue=False):
 
     set_seed(seed)
 
@@ -164,10 +164,11 @@ def get_arg_parser():
     parser.add_argument('--savedir', type=str, default='savedir')
     parser.add_argument('--dataset', type=str, default='cifar10')
     parser.add_argument('--seed', type=int, default=10)
+    parser.add_argument('--continue', action='store_true')
     return parser
 
 
 if __name__ == '__main__':
     parser = get_arg_parser()
     args = parser.parse_args()
-    train(args.depth, args.width, args.seed, savedir=args.savedir)
+    train(args.depth, args.width, args.seed, savedir=args.savedir, is_continue=args.continue)
