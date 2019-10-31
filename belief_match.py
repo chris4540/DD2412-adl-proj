@@ -19,26 +19,6 @@ class Config:
     eta = 1.0
     n_classes = 10
 
-def get_result(img_input, cls_pred, results):
-    batch_size = tf.size(cls_i)
-    # loop over different classes for perturb
-    for cls_j in range(10):
-        one_hot = tf.one_hot([cls_j]*batch_size, Config.n_classes)
-        x_adv = tf.identity(img_input)
-        for k in range(Config.adv_steps):
-            with tf.GradientTape() as tape:
-                tape.watch(x_adv)
-                s_pred = student(x_adv)
-                t_pred = teacher(x_adv)
-                loss = cat_ce_fn(one_hot, s_pred)
-
-            x_adv -= Config.eta*tape.gradient(loss, x_adv)
-            # save down their predictions
-            cls_prob_s = tf.reduce_max(s_pred * one_hot, axis=1)
-            cls_prob_t = tf.reduce_max(t_pred * one_hot, axis=1)
-            results[k].append((cls_prob_s, cls_prob_t))
-    return results
-
 if __name__ == "__main__":
     # data
     (_, _), (x_test, y_test_labels) = get_cifar10_data()
@@ -48,16 +28,15 @@ if __name__ == "__main__":
 
     # Teacher
     teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3))
-    teacher.load_weights('cifar10_WRN-40-2-seed45_model.172.h5')
+    teacher.load_weights('cifar10_WRN-40-2-seed45_model.204.h5')
 
     # Student
     student = WideResidualNetwork(16, 1, input_shape=(32, 32, 3))
-    student.load_weights('cifar10_WRN-16-1-seed45_model.171.h5')
+    student.load_weights('cifar10-T40-2-S16-1-seed_45.model.79500.h5')
 
     # make them freeze
     student.trainable = False
     teacher.trainable = False
-    # ========================================================
     # ========================================================
     # check if matched of two model predictions
     # use mini-batch for memory issue
@@ -91,18 +70,56 @@ if __name__ == "__main__":
     data = tf.data.Dataset.from_tensor_slices((selected_x_test, cls_preds)).batch(Config.batch_size)
     cat_ce_fn = tf.keras.losses.CategoricalCrossentropy()
     results = {k: [] for k in range(Config.adv_steps)}
-    for x, cls_i in tqdm(data):
-        results = get_result(x, cls_i, results)
+    for img_input, cls_i in tqdm(data):
+        batch_size = tf.size(cls_i)
+        # loop over different classes for perturb
+        for cls_j in range(Config.n_classes):
+            one_hot = tf.one_hot([cls_j]*batch_size, Config.n_classes)
+            x_adv = tf.identity(img_input)
+            for k in range(Config.adv_steps):
+                with tf.GradientTape() as tape:
+                    tape.watch(x_adv)
+                    s_pred = student(x_adv)
+                    t_pred = teacher(x_adv)
+                    loss = cat_ce_fn(one_hot, s_pred)
+                    # loss = 0 if i == j
 
+                x_adv -= Config.eta*tape.gradient(loss, x_adv)
+                # save down their predictions
+                cls_prob_s = tf.reduce_max(s_pred * one_hot, axis=1)
+                cls_prob_t = tf.reduce_max(t_pred * one_hot, axis=1)
+                results[k].append((cls_prob_s, cls_prob_t))
     # ===========================================================
-
-    # mean transition error
-    err = 0
+    # save down mean over classes and number of samples
+    mean_t_prob_j = {k: None for k in range(Config.adv_steps)}
+    mean_s_prob_j = {k: None for k in range(Config.adv_steps)}
     for k in results.keys():
-        diff = [tf.abs(a - b).numpy() for a, b in results[k]]
-        [print(_.shape) for _ in diff]
-        diff = np.concatenate(diff)
-        err += np.mean(diff)
-    print(err)
+        paris = results[k]
+        s_probs = []
+        t_probs = []
+        for s, t in paris:
+            s_probs.append(s)
+            t_probs.append(t)
+
+        s_probs = tf.concat(s_probs, 0) * Config.n_classes / (Config.n_classes-1)
+        t_probs = tf.concat(t_probs, 0) * Config.n_classes / (Config.n_classes-1)
+
+        mean_s_prob_j[k] = np.mean(s_probs.numpy())
+        mean_t_prob_j[k] = np.mean(t_probs.numpy())
+    # ==================================================================
+    df = pd.DataFrame.from_dict({
+        'teacher': mean_t_prob_j,
+        'student': mean_s_prob_j,
+    })
+
+    df.to_csv('tmp.csv')
+    # # mean transition error
+    # err = 0
+    # for k in results.keys():
+    #     diff = [tf.abs(a - b).numpy() for a, b in results[k]]
+    #     [print(_.shape) for _ in diff]
+    #     diff = np.concatenate(diff)
+    #     err += np.mean(diff)
+    # print(err)
 
     # curve TODO
