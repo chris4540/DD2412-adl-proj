@@ -1,5 +1,7 @@
 """
 Refactor from ryan code
+1. Sample only 1000 img for calculation
+2. Use batch
 """
 import tensorflow as tf
 tf.enable_v2_behavior()
@@ -7,6 +9,7 @@ from net.wide_resnet import WideResidualNetwork
 from utils.preprocess import get_cifar10_data
 from utils.preprocess import balance_sampling
 import numpy as np
+from tqdm import tqdm
 
 if __name__ == "__main__":
     # data
@@ -56,26 +59,37 @@ if __name__ == "__main__":
 
     n_match_data = tf.size(cls_preds).numpy()
     print("# of testing data for matching belief = ", n_match_data)
-    # -------------------------------------------------------------
-    data = tf.data.Dataset.from_tensor_slices((selected_x_test, cls_preds)).batch(20, drop_remainder=True)
+    # -----------------------------------------------------------------
+    data = tf.data.Dataset.from_tensor_slices((selected_x_test, cls_preds)).batch(100)
     cat_ce_fn = tf.keras.losses.CategoricalCrossentropy()
-    results = []
-    for x, cls_i in data:
+    results = {k: [] for k in range(3)}
+    for x, cls_i in tqdm(data):
         batch_size = int(tf.size(cls_i).numpy())
         # loop over different classes for perturb
         for cls_j in range(10):
+            one_hot = tf.one_hot([cls_j]*batch_size, 10)
             x_adv = tf.identity(x)
-            for _ in range(3):
+            for k in range(3):
                 with tf.GradientTape() as tape:
                     tape.watch(x_adv)
                     s_pred = student(x_adv)
                     t_pred = teacher(x_adv)
-                    one_hot = tf.one_hot([cls_j]*batch_size, 10)
                     loss = cat_ce_fn(one_hot, s_pred)
 
                 x_adv -= 1*tape.gradient(loss, x_adv)
                 # save down their predictions
-                results.append((s_pred, t_pred))
-    # =========================================================
-    diff = [np.abs((a - b).numpy()) for a, b in results]
-    print(np.mean(diff))
+                cls_prob_s = tf.reduce_max(s_pred * one_hot, axis=1)
+                cls_prob_t = tf.reduce_max(t_pred * one_hot, axis=1)
+                results[k].append((cls_prob_s, cls_prob_t))
+    # ===========================================================
+
+    # mean transition error
+    err = 0
+    for k in results.keys():
+        diff = [tf.abs(a - b).numpy() for a, b in results[k]]
+        [print(_.shape) for _ in diff]
+        diff = np.concatenate(diff)
+        err += np.mean(diff)
+    print(err)
+
+    # curve TODO
