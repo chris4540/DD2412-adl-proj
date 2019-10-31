@@ -6,6 +6,7 @@ tf.enable_v2_behavior()
 from net.wide_resnet import WideResidualNetwork
 from utils.preprocess import get_cifar10_data
 from utils.preprocess import balance_sampling
+import numpy as np
 
 if __name__ == "__main__":
     # data
@@ -29,7 +30,8 @@ if __name__ == "__main__":
     # ========================================================
     # check if matched of two model predictions
     # use mini-batch for memory issue
-    same_pred_idx_list = []
+    sel_x_test_list = []
+    cls_pred_list = []
     offset = 0
     for batch_x, batch_y_lbl in test_data_loader:
         # Make prediction
@@ -37,16 +39,43 @@ if __name__ == "__main__":
         s_pred = tf.argmax(student(batch_x), -1)
 
 
-        same_pred = tf.compat.v2.where(tf.equal(t_pred, s_pred))
-        same_pred = tf.cast(same_pred, tf.int32)
-        same_pred = tf.reshape(same_pred, [-1]) + offset
+        same_pred_idx = tf.compat.v2.where(tf.equal(t_pred, s_pred))
+        # same_pred_idx = tf.cast(same_pred_idx, tf.int32)
 
-        # add back offset
-        offset += tf.size(batch_y_lbl)
+        # select x_test and y_test only if two models pred. the same
+        same_pred = tf.gather_nd(s_pred, same_pred_idx)
+        sel_x_test = tf.gather_nd(x_test, same_pred_idx)
+        cls_pred_list.append(same_pred)
 
-        same_pred_idx_list.append(same_pred)
+        #
+        sel_x_test_list.append(sel_x_test)
 
-    same_pred_idxs = tf.concat(same_pred_idx_list, 0)
-    n_match_data = tf.size(same_pred_idxs).numpy()
+
+    cls_preds = tf.concat(cls_pred_list, 0)
+    selected_x_test = tf.concat(sel_x_test_list, 0)
+
+    n_match_data = tf.size(cls_preds).numpy()
     print("# of testing data for matching belief = ", n_match_data)
-    # --------------------------------------------------------
+    # -------------------------------------------------------------
+    data = tf.data.Dataset.from_tensor_slices((selected_x_test, cls_preds)).batch(20, drop_remainder=True)
+    cat_ce_fn = tf.keras.losses.CategoricalCrossentropy()
+    results = []
+    for x, cls_i in data:
+        batch_size = int(tf.size(cls_i).numpy())
+        # loop over different classes for perturb
+        for cls_j in range(10):
+            x_adv = tf.identity(x)
+            for _ in range(3):
+                with tf.GradientTape() as tape:
+                    tape.watch(x_adv)
+                    s_pred = student(x_adv)
+                    t_pred = teacher(x_adv)
+                    one_hot = tf.one_hot([cls_j]*batch_size, 10)
+                    loss = cat_ce_fn(one_hot, s_pred)
+
+                x_adv -= 1*tape.gradient(loss, x_adv)
+                # save down their predictions
+                results.append((s_pred, t_pred))
+    # =========================================================
+    diff = [np.abs((a - b).numpy()) for a, b in results]
+    print(np.mean(diff))
