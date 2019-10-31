@@ -21,8 +21,6 @@ Notes:
     1. Used Pre-Activation ResNet
         performing batch norm and ReLU before convolution
         i.e. BN-ReLU-Conv
-TODO:
-    2. model.add_lost
 
 Visualize the network:
     ```
@@ -30,13 +28,10 @@ Visualize the network:
     ```
 """
 import tensorflow as tf
-import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Activation
-from tensorflow.keras.layers import MaxPooling2D
-from tensorflow.keras.layers import GlobalAveragePooling2D
 from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import AveragePooling2D
 from tensorflow.keras.layers import Input
@@ -44,25 +39,9 @@ from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import Add
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Softmax
-from tensorflow.keras.layers import Lambda
 from tensorflow.keras.layers import Layer
 from tensorflow.keras import regularizers
-import tensorflow.keras.backend as K
 
-
-class Identity(Layer):
-    """
-    Identity layer, like nn.Identity in pytorch
-    """
-
-    def __init__(self, **kwargs):
-        super(Identity, self).__init__(**kwargs)
-
-    def call(self, x):
-        return x
-
-    def compute_output_shape(self, input_shape):
-        return input_shape
 
 def WideResidualNetwork(depth=28, width=8, dropout_rate=0.0,
                         input_shape=None, classes=10, weight_decay=0.0,
@@ -206,23 +185,17 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
                                count=N, strides=1, dropout=dropout,
                                weight_decay=weight_decay)
     act1 = x
-    # att1 = Identity(name='attention1')(x)  # Identity layer
-
 
     # Block Group: conv3
     x = __residual_block_group(x, nChannels[1], nChannels[2],
                                count=N, strides=2, dropout=dropout,
                                weight_decay=weight_decay)
     act2 = x
-    # att2 = Identity(name='attention2')(x)  # Identity layer
-
     # Block Group: conv4
     x = __residual_block_group(x, nChannels[2], nChannels[3],
                                count=N, strides=2, dropout=dropout,
                                weight_decay=weight_decay)
     act3 = x
-    # att3 = Identity(name='attention3')(x)  # Identity layer
-
 
     # Avg pooling + fully connected layer
     x = BatchNormalization()(x)
@@ -231,7 +204,8 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     x = Flatten()(x)
 
     # Final classification layer
-    x = Dense(nb_classes, name='logits')(x)
+    x = Dense(nb_classes, name='logits', 
+              kernel_regularizer=regularizers.l2(weight_decay))(x)
     if has_softmax and not output_activations:
         x = Softmax(axis=-1)(x)
 
