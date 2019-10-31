@@ -204,8 +204,8 @@ def __create_wide_residual_network(nb_classes, img_input, depth=28,
     x = Flatten()(x)
 
     # Final classification layer
-    x = Dense(nb_classes, name='logits', k
-              ernel_regularizer=regularizers.l2(weight_decay))(x)
+    x = Dense(nb_classes, name='logits', 
+              kernel_regularizer=regularizers.l2(weight_decay))(x)
     if has_softmax and not output_activations:
         x = Softmax(axis=-1)(x)
 
