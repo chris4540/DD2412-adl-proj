@@ -1,7 +1,4 @@
 """
-Run:
-$ python3 train_scratch.py 40 2
-
 1. Used skills not mentioned in zero shot paper:
     1. random crop, fill_mode='reflect'
     2. horizontal_flip
@@ -23,6 +20,7 @@ from tensorflow.keras.callbacks import CSVLogger
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 from net.wide_resnet import WideResidualNetwork
 import argparse
+from tensorflow.keras.models import load_model
 
 class Config:
     """
@@ -58,7 +56,7 @@ def mkdir(dirname):
     os.makedirs(save_dir, exist_ok=True)
 
 
-def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
+def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models', is_continue=True):
 
     set_seed(seed)
 
@@ -72,27 +70,15 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     else:
         raise NotImplementedError("TODO: SVHN")
 
+    # To one-hot
+    y_train = to_categorical(y_train_lbl)
+    y_test = to_categorical(y_test_lbl)
+
     # Setup model
     model_type = 'WRN-%d-%d-seed%d' % (depth, width, seed)
     wrn_model = WideResidualNetwork(
             depth, width, classes=classes, input_shape=shape,
             weight_decay=Config.weight_decay)
-
-    # To one-hot
-    y_train = to_categorical(y_train_lbl)
-    y_test = to_categorical(y_test_lbl)
-
-
-    # compile model
-    optim = SGD(learning_rate=lr_schedule(0),
-                momentum=Config.momentum,
-                decay=0.0,
-                nesterov=True
-                )
-
-    wrn_model.compile(loss='categorical_crossentropy',
-                      optimizer=optim,
-                      metrics=['accuracy'])
 
     # Prepare model model saving directory.
     save_dir = os.path.join(os.getcwd(), savedir)
@@ -105,6 +91,34 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     # set up log file
     log_fname = 'wrn-{}-{}-seed{}_log.csv'.format(depth, width, seed)
     log_filepath = os.path.join(save_dir, log_fname)
+    # =================================================================
+    if is_continue:
+        for i in range(Config.epochs, 0, -1):
+            fname = model_filepath.format(epoch=i)
+            if os.path.isfile(fname):
+                print("Using ", fname, " as the save point.")
+                break
+        if i <= 1:
+            raise RuntimeError("Cannot continue the training")
+        # ======================================================
+        initial_epoch = i
+        wrn_model = load_model(fname)
+        is_log_append = True
+    else:
+        initial_epoch = 0
+        # compile model
+        optim = SGD(learning_rate=lr_schedule(initial_epoch),
+                    momentum=Config.momentum,
+                    decay=0.0,
+                    nesterov=True
+                    )
+
+        wrn_model.compile(loss='categorical_crossentropy',
+                        optimizer=optim,
+                        metrics=['accuracy'])
+        is_log_append = False
+
+    logger = CSVLogger(filename=log_filepath, separator=',', append=is_log_append)
 
     # Prepare callbacks for model saving and for learning rate adjustment.
     lr_scheduler = LearningRateScheduler(lr_schedule)
@@ -113,10 +127,6 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
                                    verbose=1,
                                    save_best_only=True
                                    )
-    logger = CSVLogger(filename=log_filepath,
-                       separator=',',
-                       append=False
-                       )
 
     callbacks = [lr_scheduler, checkpointer, logger]
 
@@ -134,12 +144,18 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models'):
     wrn_model.fit_generator(
         datagen.flow(x_train, y_train, batch_size=Config.batch_size, shuffle=True),
         validation_data=(x_test, y_test),
-        epochs=Config.epochs, verbose=1,
+        epochs=Config.epochs,
+        initial_epoch=initial_epoch,
+        verbose=1,
         callbacks=callbacks)
 
     scores = wrn_model.evaluate(x_test, y_test, verbose=1)
     print('Test loss:', scores[0])
     print('Test accuracy:', scores[1])
+    # =================================================
+    # use the final one as teachers
+    wrn_model.save(model_filepath.format(epoch=Config.epochs-1))
+
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
