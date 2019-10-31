@@ -52,6 +52,7 @@ class Config:
     epochs = 205
     #
     alpha = 0.9
+    temp = 4.0
 
 def lr_schedule(epoch):
     """
@@ -100,7 +101,8 @@ def train_student(student, optim, batch, t_logits, t_acts, onehot_label):
                 s_acts=s_acts,
                 onehot_label=onehot_label,
                 alpha=Config.alpha,
-                beta=Config.beta)
+                beta=Config.beta,
+                temp=Config.temp)
         # -------------------------------------------------
         # The L2 weighting regularization loss
         reg_loss = tf.reduce_sum(student.losses)
