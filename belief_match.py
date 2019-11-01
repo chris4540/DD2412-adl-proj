@@ -19,6 +19,7 @@ import numpy as np
 from tqdm import tqdm
 import pandas as pd
 import os
+import argparse
 
 class Config:
     # K adversarial steps on network A
@@ -44,11 +45,10 @@ if __name__ == "__main__":
     print(args)
     # data
     (_, _), (x_test, y_test_labels) = get_cifar10_data()
-    x_test, y_test_labels = balance_sampling(x_test, y_test_labels, data_per_class=Config.data_per_class)
-    print(np.unique(y_test_labels, return_counts=True))
+    x_test, y_test_labels = balance_sampling(x_test, y_test_labels, data_per_class=args.data_per_class)
 
     # make sure that every batch is a class
-    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_labels)).batch(Config.data_per_class)
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_labels)).batch(args.data_per_class)
 
     # Teacher
     teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3))
