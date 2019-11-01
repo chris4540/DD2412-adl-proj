@@ -31,12 +31,14 @@ class Config:
 if __name__ == "__main__":
     # data
     (_, _), (x_test, y_test_labels) = get_cifar10_data()
-    x_test, y_test_labels = balance_sampling(x_test, y_test_labels, data_per_class=Config.data_per_class + 30)
+    x_test, y_test_labels = balance_sampling(x_test, y_test_labels, data_per_class=Config.data_per_class)
+    print(np.unique(y_test_labels, return_counts=True ))
+    os.sys.exit(0)
     ind = np.argsort(y_test_labels, axis=0)
     x_test = np.take(x_test, ind.reshape(-1), axis=0)
     y_test_labels = np.take_along_axis(y_test_labels, ind, axis=0)
 
-    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_labels)).batch(Config.data_per_class + 30)
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_labels)).batch(Config.data_per_class)
 
     # Teacher
     teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3))
@@ -57,12 +59,13 @@ if __name__ == "__main__":
     cls_pred_list = []
     offset = 0
     for batch_x, batch_y_lbl in test_data_loader:
+        print(batch_y_lbl)
         # Make prediction
         t_pred = tf.argmax(teacher(batch_x), -1)
         s_pred = tf.argmax(student(batch_x), -1)
 
         same_pred_idx = tf.compat.v2.where(tf.equal(t_pred, s_pred))
-        print(same_pred_idx)
+        print(len(same_pred_idx))
         # same_pred_idx = tf.cast(same_pred_idx, tf.int32)
 
         # select x_test and y_test only if two models pred. the same
