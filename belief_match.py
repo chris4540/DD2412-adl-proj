@@ -10,10 +10,11 @@ from utils.preprocess import get_cifar10_data
 from utils.preprocess import balance_sampling
 import numpy as np
 from tqdm import tqdm
+import pandas as pd
 
 class Config:
     # K adversarial steps on network A
-    adv_steps = 30
+    adv_steps = 100
     batch_size = 100
 
     eta = 1.0
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     # data
     (_, _), (x_test, y_test_labels) = get_cifar10_data()
     if True:
-        x_test, y_test_labels = balance_sampling(x_test, y_test_labels, data_per_class=50)
+        x_test, y_test_labels = balance_sampling(x_test, y_test_labels, data_per_class=100)
     test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_labels)).batch(200)
 
     # Teacher
@@ -32,7 +33,8 @@ if __name__ == "__main__":
 
     # Student
     student = WideResidualNetwork(16, 1, input_shape=(32, 32, 3))
-    student.load_weights('cifar10-T40-2-S16-1-seed_45.model.79500.h5')
+    # student.load_weights('cifar10-T40-2-S16-1-seed_45.model.79500.h5')
+    student.load_weights('kdat-m200-cifar10_T40-2_S16-1_seed23_model.204.h5')
 
     # make them freeze
     student.trainable = False
@@ -112,7 +114,7 @@ if __name__ == "__main__":
         'student': mean_s_prob_j,
     })
 
-    df.to_csv('tmp.csv')
+    df.to_csv('result.csv')
     # # mean transition error
     # err = 0
     # for k in results.keys():
