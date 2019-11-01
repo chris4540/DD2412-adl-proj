@@ -46,7 +46,7 @@ def get_cifar10_data():
 def balance_sampling(data, lables_, data_per_class=200):
 
     # eps value to increase a bit of acceptance prob
-    eps = 1e-6
+    eps = 1e-1
 
     # Checking the shape of input
     n_data = data.shape[0]
@@ -56,14 +56,14 @@ def balance_sampling(data, lables_, data_per_class=200):
     cls_labels = np.unique(lables)
     nclasses = len(cls_labels)
 
-    if nclasses*data_per_class > n_data:
+    if nclasses*data_per_class >= n_data:
         raise ValueError("Unable to sample data, the data per class is too large")
 
     # build a quota of classes first
     qouta_table = {i: data_per_class for i in cls_labels}
 
     # acceptance prob.
-    p = (1.0 + eps) / nclasses
+    p = 1.0 / nclasses + eps
 
     selected_sample = []
     # loop over training data
@@ -80,6 +80,8 @@ def balance_sampling(data, lables_, data_per_class=200):
 
         if not qouta_table:
             break
+    if i ==  n_data - 1:
+        print('Warning: Sampled all data')
 
     # contruct the results
     sample_data = data[selected_sample, :]

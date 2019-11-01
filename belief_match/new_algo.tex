@@ -1,0 +1,67 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{cleveref}       % this package must be loaded at the last
+
+
+\begin{document}
+\begin{algorithm}[H]
+    \centering
+    \caption{Computing Transition Curves in Minibatch}\label{algorithm2}
+    \begin{algorithmic}[1]
+        \State \text{\textbf{pretrain}: $net_A$}
+        \State \text{\textbf{pretrain}: $net_B$}
+        
+        % Save useful test set
+        \State \text{Initialize predClassList and xList}
+        % \State list_of_pred_class = []
+        \For{$x \in X_{test}$}
+            \State $i_A\equiv$ class of $x$ according to $net_A$
+            \State $i_B\equiv$ class of $x$ according to $net_B$
+            \If{$i_A = i_B = i$}
+                \State append(xList, $x$)
+                \State append(predClassList, $i$)
+            \EndIf
+        \EndFor
+        
+        \\
+        // sort the saved test set by the predicted class
+        \State index $\gets$ argsort(predClassList)
+        \State predClassList $\gets$ apply(predClassList, index)
+        \State xList $\gets$ apply(xList, index)
+        
+        \\
+        \\
+        // split the same prediction classes into batches  \\
+        // The first batch should be all predicted as class 0 etc.
+        \State xBatchByClass, classes $\gets$ splitToBatch(xList, predClassList)
+
+        \\ \\
+        // Do pertrubation
+        \For{$x, i \in \text{xBatchByClass}, \text{classes}$}
+            \State $x_0 \gets x$
+            \For{$j \ne i$}
+                \State $x_{adv} \gets x_0$
+                \For{$1,2,...,K$}
+                    \State$y_A, y_B\gets nw_A(x_{adv}),nw_B(x_{adv})$
+                    \State $x_{adv} \gets x_{adv}- \xi\frac{\partial L_{CE}(y_A,j)}{\partial x_{adv}}$
+                    \State \textbf{save:} $y_A,y_B$
+                \EndFor
+            \EndFor
+        \EndFor
+        
+    \end{algorithmic}
+\end{algorithm}
+\end{document}
