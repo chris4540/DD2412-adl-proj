@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.losses import KLDivergence
 from tensorflow.keras.utils import normalize
 
-def kd_loss(p_true, p_pred):
+def kldiv_loss_fn(p_true, p_pred):
     """
     Kullback Leibler divergence loss
 
@@ -18,7 +18,7 @@ def kd_loss(p_true, p_pred):
 
 def generator_loss_fn(t_logits, s_logits, temp=1):
 
-	loss = kd_loss(
+	loss = kldiv_loss_fn(
             tf.math.softmax(t_logits / temp) ,
             tf.math.softmax(s_logits / temp))
 
@@ -26,13 +26,49 @@ def generator_loss_fn(t_logits, s_logits, temp=1):
 
 	return g_loss
 
+def cross_entropy(logits, onehot_label):
+    cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+    ret = cce(onehot_label, logits)
+    return ret
+
+def knowledge_distil_loss_fn(**kwargs):
+    alpha = kwargs['alpha']
+    beta = kwargs['beta']
+    onehot_label = kwargs['onehot_label']
+    t_logits = kwargs['t_logits']
+    t_acts = kwargs['t_acts']
+    s_logits = kwargs['s_logits']
+    s_acts = kwargs['s_acts']
+    temp = kwargs.get('temp', 1)
+    # ====================================================================
+
+    # 1. cross entopy loss
+    if alpha < 1.0:
+        ce_loss = cross_entropy(s_logits, onehot_label)
+    else:
+        ce_loss = 0
+
+    # 2. KL Divergence
+    if alpha > 0.0:
+        kl_div_loss = kldiv_loss_fn(
+                tf.math.softmax(t_logits / temp) ,
+                tf.math.softmax(s_logits / temp))
+    else:
+        kl_div_loss = 0.0
+
+    # attention loss
+    att_loss = 0.0
+    if beta != 0.0:
+        for t_act, s_act in zip(t_acts, s_acts):
+            att_loss += attention_loss(t_act, s_act)
+
+    ret = (1 - alpha) * ce_loss + (2*alpha*temp*temp) * kl_div_loss + beta* att_loss
+    return ret
 
 def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
     """
     The student loss function used in
         - zero-shot learning
-        - Knowledge-distillaton with attention term (KD-AT)
-        - few-shot learning, few samples as KD-AT
 
     See Section 3.2, Eq. 1
 
@@ -46,7 +82,7 @@ def student_loss_fn(t_logits, t_acts, s_logits, s_acts, beta, temp=1):
     Return:
         loss
     """
-    loss = kd_loss(
+    loss = kldiv_loss_fn(
             tf.math.softmax(t_logits / temp) ,
             tf.math.softmax(s_logits / temp))
 

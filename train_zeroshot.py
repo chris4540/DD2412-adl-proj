@@ -24,15 +24,6 @@ TODO:
 """
 import tensorflow as tf
 tf.enable_v2_behavior()
-from utils.seed import set_seed
-from net.generator import NavieGenerator
-from utils.losses import student_loss_fn
-from utils.losses import generator_loss_fn
-from utils.preprocess import get_cifar10_data
-from utils.csvlogger import CustomizedCSVLogger
-from tensorflow.keras.optimizers import Adam
-from net.wide_resnet import WideResidualNetwork
-from tensorflow.keras.experimental import CosineDecay
 import numpy as np
 import os
 import argparse
@@ -42,7 +33,18 @@ import time
 import math
 from collections import OrderedDict
 from utils import mkdir
+from utils.eval import evaluate
 from os.path import join
+from utils.seed import set_seed
+from net.generator import NavieGenerator
+from utils.losses import student_loss_fn
+from utils.losses import generator_loss_fn
+from utils.preprocess import get_cifar10_data
+from utils.csvlogger import CustomizedCSVLogger
+from tensorflow.keras.optimizers import Adam
+from net.wide_resnet import WideResidualNetwork
+from tensorflow.keras.experimental import CosineDecay
+
 
 
 class Config:
@@ -214,6 +216,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
     ckpt_manager = tf.train.CheckpointManager(ckpt, os.path.join(savedir, 'chpt'), max_to_keep=2)
     # ==========================================================================
     # if a checkpoint exists, restore the latest checkpoint.
+    start_iter = 0
     if ckpt_manager.latest_checkpoint:
         ckpt.restore(ckpt_manager.latest_checkpoint)
         print ('Latest checkpoint restored!!')
@@ -256,8 +259,10 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
         iter_etime = time.time()
         max_g_grad_norm_metric(max_g_grad_norm)
         max_s_grad_norm_metric(max_s_grad_norm)
+        # --------------------------------------------------------------------
+        is_last_epoch = (iter_ == Config.n_outer_loop - 1)
 
-        if iter_ != 0 and iter_ % Config.print_freq == 0:
+        if iter_!= 0 and (iter_ % Config.print_freq == 0 or is_last_epoch):
             n_cls_t_pred_avg = n_cls_t_pred_metric.result().numpy()
             n_cls_s_pred_avg = n_cls_s_pred_metric.result().numpy()
             time_per_epoch =  iter_etime - iter_stime
@@ -283,7 +288,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
 
             pprint.pprint(row_dict)
         # ======================================================================
-        if iter_!= 0 and iter_ % Config.log_freq == 0:
+        if iter_!= 0 and (iter_ % Config.log_freq == 0 or is_last_epoch):
             # calculate acc
             test_accuracy = evaluate(test_data_loader, student).numpy()
             row_dict['test_acc'] = test_accuracy
@@ -302,30 +307,9 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
             max_g_grad_norm_metric.reset_states()
             max_s_grad_norm_metric.reset_states()
 
-        if iter_!= 0 and iter_ % 5000 == 0:
+        if iter_!= 0 and (iter_ % 5000 == 0 or is_last_epoch):
             generator.save_weights(join(full_savedir, "generator_i{}.h5".format(iter_)))
             student.save_weights(join(full_savedir, "student_i{}.h5".format(iter_)))
-
-
-def evaluate(data_loader, model, output_activations=True):
-    total = 0
-    correct = 0.0
-    for inputs, labels in tqdm(data_loader):
-        if output_activations:
-            out, *_ = model(inputs, training=False)
-        else:
-            out = model(inputs, training=False)
-
-        prob = tf.math.softmax(out, axis=-1)
-
-        pred = tf.argmax(prob, axis=-1)
-        equality = tf.equal(pred, tf.reshape(labels, [-1]))
-        correct = correct + tf.reduce_sum(tf.cast(equality, tf.float32))
-        total = total + tf.size(equality)
-
-    total = tf.cast(total, tf.float32)
-    ret = correct / total
-    return ret
 
 
 def get_arg_parser():
