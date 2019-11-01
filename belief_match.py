@@ -23,7 +23,7 @@ import argparse
 
 class Config:
     # K adversarial steps on network A
-    adv_steps = 100
+    adv_steps = 30
     data_per_class = 100
     eta = 1.0
     n_classes = 10
@@ -122,6 +122,7 @@ if __name__ == "__main__":
     results = {k: [] for k in range(Config.adv_steps)}
     for batch_img, cls_i in tqdm(zip(img_batches, classes)):
         batch_size = int(batch_img.shape[0])
+        print(batch_size)
         # loop over different classes for perturb
         for cls_j in range(Config.n_classes):
             if cls_i == cls_j:
@@ -134,7 +135,7 @@ if __name__ == "__main__":
                     s_pred = student(x_adv)
                     t_pred = teacher(x_adv)
                     loss = cat_ce_fn(one_hot, s_pred)
-                print(loss)
+                # print(loss)
 
                 x_adv -= Config.eta*batch_size*tape.gradient(loss, x_adv)
                 # save down their predictions
