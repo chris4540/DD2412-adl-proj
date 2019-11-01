@@ -4,7 +4,7 @@ Refactor from ryan code
 2. Use batch
 
 Pros:
-1. faster
+1. much faster
 
 Cons:
 1. The max prob. is not 1
@@ -22,8 +22,7 @@ import os
 
 class Config:
     # K adversarial steps on network A
-    adv_steps = 30
-    batch_size = 1
+    adv_steps = 100
     data_per_class = 100
     eta = 1.0
     n_classes = 10
@@ -32,12 +31,9 @@ if __name__ == "__main__":
     # data
     (_, _), (x_test, y_test_labels) = get_cifar10_data()
     x_test, y_test_labels = balance_sampling(x_test, y_test_labels, data_per_class=Config.data_per_class)
-    print(np.unique(y_test_labels, return_counts=True ))
-    os.sys.exit(0)
-    ind = np.argsort(y_test_labels, axis=0)
-    x_test = np.take(x_test, ind.reshape(-1), axis=0)
-    y_test_labels = np.take_along_axis(y_test_labels, ind, axis=0)
+    print(np.unique(y_test_labels, return_counts=True))
 
+    # make sure that every batch is a class
     test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_labels)).batch(Config.data_per_class)
 
     # Teacher
@@ -57,16 +53,14 @@ if __name__ == "__main__":
     # use mini-batch for memory issue
     sel_x_test_list = []
     cls_pred_list = []
-    offset = 0
+    # n_match_data = 0
     for batch_x, batch_y_lbl in test_data_loader:
-        print(batch_y_lbl)
         # Make prediction
         t_pred = tf.argmax(teacher(batch_x), -1)
         s_pred = tf.argmax(student(batch_x), -1)
 
         same_pred_idx = tf.compat.v2.where(tf.equal(t_pred, s_pred))
-        print(len(same_pred_idx))
-        # same_pred_idx = tf.cast(same_pred_idx, tf.int32)
+        # same_pred_idx = tf.slice(same_pred_idx, [0, 0], [Config.data_per_class, 1])
 
         # select x_test and y_test only if two models pred. the same
         same_pred = tf.gather_nd(s_pred, same_pred_idx)
@@ -75,6 +69,7 @@ if __name__ == "__main__":
 
         #
         sel_x_test_list.append(sel_x_test)
+        # n_match_data += len(same_pred_idx)
 
 
     cls_preds = tf.concat(cls_pred_list, 0)
@@ -82,18 +77,41 @@ if __name__ == "__main__":
 
     n_match_data = tf.size(cls_preds).numpy()
     print("# of testing data for matching belief = ", n_match_data)
-    os.sys.exit(1)
+    ind = np.argsort(cls_preds, axis=0)
+    sorted_cls_preds = tf.gather(cls_preds, ind)
+    sorted_imgs = tf.gather(selected_x_test, ind)
+
+    # split batches
+    cur_cls = sorted_cls_preds[0].numpy()
+    start_idx = 0
+    img_batches = []
+    classes = []
+    for idx, cls_i in enumerate(sorted_cls_preds):
+        if cur_cls != cls_i.numpy():
+            print(start_idx, idx)
+            # close this batch
+            img_batches.append(sorted_imgs[start_idx:idx])
+            classes.append(cur_cls)
+            # Update
+            start_idx = idx
+            cur_cls = cls_i.numpy()
+    # ------------------------------------------
+    # the last class
+    img_batches.append(sorted_imgs[start_idx:idx])
+    classes.append(cls_i.numpy())
     # -----------------------------------------------------------------
-    # -----------------------------------------------------------------
-    data = tf.data.Dataset.from_tensor_slices((selected_x_test, cls_preds)).batch(Config.batch_size)
     cat_ce_fn = tf.keras.losses.CategoricalCrossentropy()
     results = {k: [] for k in range(Config.adv_steps)}
-    for img_input, cls_i in tqdm(data):
-        batch_size = tf.size(cls_i)
+    for batch_img, cls_i in tqdm(zip(img_batches, classes)):
+        batch_size = int(batch_img.shape[0])
+        print(batch_img.shape)
+        print(batch_size)
         # loop over different classes for perturb
         for cls_j in range(Config.n_classes):
+            if cls_i == cls_j:
+                continue
             one_hot = tf.one_hot([cls_j]*batch_size, Config.n_classes)
-            x_adv = tf.identity(img_input)
+            x_adv = tf.identity(batch_img)
             for k in range(Config.adv_steps):
                 with tf.GradientTape() as tape:
                     tape.watch(x_adv)
@@ -130,5 +148,5 @@ if __name__ == "__main__":
         'student': mean_s_prob_j,
     })
 
-    df.to_csv('result.csv')
+    df.to_csv('results.csv')
 
