@@ -1,18 +1,6 @@
 """
 For data preprocessing
 
-To vivek:
-Please seperate 3 steps; and keep others code or ask other ppl as test already broken
-- tf.keras.datasets.cifar10.load_data()
-- standardization
-- Sampling (Optional, depends on obtained class vector / label vector)
-- to_categorical
-
-Don't encapsulate step 1, 2, 4 as Chris already seperated them
-Step 1 and 2 can be together as SVHN will do so
-Read others code esp in cooperation
-
-Read the sampling example in test folder or this module main
 """
 import tensorflow as tf
 import numpy as np
@@ -42,6 +30,30 @@ def get_cifar10_data():
     x_test = (x_test - x_train_mean) / x_train_std
     return (x_train, y_train_labels), (x_test, y_test_labels)
 
+def get_fashion_mnist_data():
+    """
+    Get fashion_mnist data. Do mean and bias removal
+
+    Return:
+        mean and bias removed data
+    """
+    (x_train, y_train_labels), (x_test, y_test_labels) = tf.keras.datasets.fashion_mnist.load_data()
+
+    x_train = np.pad(x_train, ((0,0),(2,2),(2,2)), 'symmetric')
+    x_train = x_train.reshape(x_train.shape[0], 32, 32, 1)
+    x_test = np.pad(x_test, ((0,0),(2,2),(2,2)), 'symmetric')
+    x_test = x_test.reshape(x_test.shape[0], 32, 32, 1)
+
+    x_train = standardize_data(x_train)
+    x_test = standardize_data(x_test)
+
+    # normalized with train mean and std
+    x_train_mean = x_train.mean(axis=0)
+    x_train_std = x_train.std(axis=0)
+
+    x_train = (x_train - x_train_mean) / x_train_std
+    x_test = (x_test - x_train_mean) / x_train_std
+    return (x_train, y_train_labels), (x_test, y_test_labels)
 # ==========================================================================
 def balance_sampling(data, lables_, data_per_class=200):
 

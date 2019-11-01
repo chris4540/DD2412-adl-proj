@@ -10,6 +10,7 @@ import math
 import numpy as np
 import tensorflow as tf
 from utils.preprocess import get_cifar10_data
+from utils.preprocess import get_fashion_mnist_data
 from utils.preprocess import to_categorical
 from utils.seed import set_seed
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -67,6 +68,10 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models', is_c
         # x_train, y_train_lbl = balance_sampling(x_train, y_train_lbl, data_per_class=200)
         shape = (32, 32, 3)
         classes = 10
+    elif dataset == 'fashion_mnist':
+        (x_train, y_train_lbl), (x_test, y_test_lbl) = get_fashion_mnist_data()
+        shape = (32, 32, 1)
+        classes = 10
     else:
         raise NotImplementedError("TODO: SVHN")
 
@@ -85,11 +90,11 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models', is_c
     mkdir(save_dir)
 
     # Set up model name and path
-    model_name = 'cifar10_%s_model.{epoch:03d}.h5' % model_type
+    model_name = '%s_%s_model.{epoch:03d}.h5' % (dataset, model_type)
     model_filepath = os.path.join(save_dir, model_name)
 
     # set up log file
-    log_fname = 'wrn-{}-{}-seed{}_log.csv'.format(depth, width, seed)
+    log_fname = '{}-wrn-{}-{}-seed{}_log.csv'.format(dataset, depth, width, seed)
     log_filepath = os.path.join(save_dir, log_fname)
     # =================================================================
     if is_continue:
