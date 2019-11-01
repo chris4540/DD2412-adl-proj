@@ -81,6 +81,7 @@ def get_arg_parser():
     parser.add_argument('--savedir', default=None)
     parser.add_argument('--dataset', type=str, default='cifar10')
     parser.add_argument('--seed', type=int, default=10)
+    parser.add_argument('--beta', type=int, default=250)
     return parser
 
 @tf.function
@@ -140,7 +141,9 @@ if __name__ == '__main__':
 
     #
     print('sample_per_class:', args.sample_per_class)
-
+    
+    # print beta
+    Config.beta = args.beta
     # print out config
     for attr, v in vars(Config).items():
         if attr.startswith('__'):
