@@ -36,6 +36,7 @@ def get_arg_parser():
     parser.add_argument('-s', '--student', dest='student_weight', type=str, required=True,
                         help='student weighting (network A in the paper)')
     parser.add_argument('-m', dest='data_per_class', type=int, default=100)
+    parser.add_argument('--batch_size_one', dest='batch_size_one', action='store_true')
     return parser
 
 if __name__ == "__main__":
@@ -93,24 +94,29 @@ if __name__ == "__main__":
     sorted_imgs = tf.gather(selected_x_test, ind)
 
     # -----------------------------------------------------------------
-    # split batches
-    cur_cls = sorted_cls_preds[0].numpy()
-    start_idx = 0
     img_batches = []
     classes = []
-    for idx, cls_i in enumerate(sorted_cls_preds):
-        if cur_cls != cls_i.numpy():
-            # close this batch
-            img_batches.append(sorted_imgs[start_idx:idx])
-            classes.append(cur_cls)
-            # Update
-            start_idx = idx
-            cur_cls = cls_i.numpy()
-    # ------------------------------------------
-    # the last class
-    img_batches.append(sorted_imgs[start_idx:idx])
-    classes.append(cls_i.numpy())
-    # -----------------------------------------------------------------
+    if not args.batch_size_one:
+        # split batches
+        cur_cls = sorted_cls_preds[0].numpy()
+        start_idx = 0
+        for idx, cls_i in enumerate(sorted_cls_preds):
+            if cur_cls != cls_i.numpy():
+                # close this batch
+                img_batches.append(sorted_imgs[start_idx:idx])
+                classes.append(cur_cls)
+                # Update
+                start_idx = idx
+                cur_cls = cls_i.numpy()
+        # ------------------------------------------
+        # the last class
+        img_batches.append(sorted_imgs[start_idx:idx])
+        classes.append(cls_i.numpy())
+        # -----------------------------------------------------------------
+    else:
+        for idx, cls_i in enumerate(sorted_cls_preds):
+            img_batches.append(sorted_imgs[idx:idx+1])
+            classes.append(cls_i.numpy())
 
     cat_ce_fn = tf.keras.losses.CategoricalCrossentropy()
     results = {k: [] for k in range(Config.adv_steps)}
@@ -128,6 +134,7 @@ if __name__ == "__main__":
                     s_pred = student(x_adv)
                     t_pred = teacher(x_adv)
                     loss = cat_ce_fn(one_hot, s_pred)
+                print(loss)
 
                 x_adv -= Config.eta*batch_size*tape.gradient(loss, x_adv)
                 # save down their predictions
