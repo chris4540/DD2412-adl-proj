@@ -18,21 +18,25 @@ from utils.preprocess import balance_sampling
 import numpy as np
 from tqdm import tqdm
 import pandas as pd
+import os
 
 class Config:
     # K adversarial steps on network A
-    adv_steps = 100
-    batch_size = 100
-
+    adv_steps = 30
+    batch_size = 1
+    data_per_class = 100
     eta = 1.0
     n_classes = 10
 
 if __name__ == "__main__":
     # data
     (_, _), (x_test, y_test_labels) = get_cifar10_data()
-    if True:
-        x_test, y_test_labels = balance_sampling(x_test, y_test_labels, data_per_class=100)
-    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_labels)).batch(200)
+    x_test, y_test_labels = balance_sampling(x_test, y_test_labels, data_per_class=Config.data_per_class + 30)
+    ind = np.argsort(y_test_labels, axis=0)
+    x_test = np.take(x_test, ind.reshape(-1), axis=0)
+    y_test_labels = np.take_along_axis(y_test_labels, ind, axis=0)
+
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test_labels)).batch(Config.data_per_class + 30)
 
     # Teacher
     teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3))
@@ -57,8 +61,8 @@ if __name__ == "__main__":
         t_pred = tf.argmax(teacher(batch_x), -1)
         s_pred = tf.argmax(student(batch_x), -1)
 
-
         same_pred_idx = tf.compat.v2.where(tf.equal(t_pred, s_pred))
+        print(same_pred_idx)
         # same_pred_idx = tf.cast(same_pred_idx, tf.int32)
 
         # select x_test and y_test only if two models pred. the same
@@ -75,6 +79,8 @@ if __name__ == "__main__":
 
     n_match_data = tf.size(cls_preds).numpy()
     print("# of testing data for matching belief = ", n_match_data)
+    os.sys.exit(1)
+    # -----------------------------------------------------------------
     # -----------------------------------------------------------------
     data = tf.data.Dataset.from_tensor_slices((selected_x_test, cls_preds)).batch(Config.batch_size)
     cat_ce_fn = tf.keras.losses.CategoricalCrossentropy()
