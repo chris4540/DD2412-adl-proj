@@ -33,8 +33,8 @@ if __name__ == "__main__":
 
     # Student
     student = WideResidualNetwork(16, 1, input_shape=(32, 32, 3))
-    # student.load_weights('cifar10-T40-2-S16-1-seed_45.model.79500.h5')
-    student.load_weights('kdat-m200-cifar10_T40-2_S16-1_seed23_model.204.h5')
+    student.load_weights('cifar10-T40-2-S16-1-seed_45.model.79500.h5')
+    # student.load_weights('kdat-m200-cifar10_T40-2_S16-1_seed23_model.204.h5')
 
     # make them freeze
     student.trainable = False
@@ -115,13 +115,4 @@ if __name__ == "__main__":
     })
 
     df.to_csv('result.csv')
-    # # mean transition error
-    # err = 0
-    # for k in results.keys():
-    #     diff = [tf.abs(a - b).numpy() for a, b in results[k]]
-    #     [print(_.shape) for _ in diff]
-    #     diff = np.concatenate(diff)
-    #     err += np.mean(diff)
-    # print(err)
 
-    # curve TODO
