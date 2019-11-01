@@ -60,16 +60,13 @@ if __name__ == "__main__":
         s_pred = tf.argmax(student(batch_x), -1)
 
         same_pred_idx = tf.compat.v2.where(tf.equal(t_pred, s_pred))
-        # same_pred_idx = tf.slice(same_pred_idx, [0, 0], [Config.data_per_class, 1])
 
         # select x_test and y_test only if two models pred. the same
         same_pred = tf.gather_nd(s_pred, same_pred_idx)
         sel_x_test = tf.gather_nd(x_test, same_pred_idx)
-        cls_pred_list.append(same_pred)
-
         #
+        cls_pred_list.append(same_pred)
         sel_x_test_list.append(sel_x_test)
-        # n_match_data += len(same_pred_idx)
 
 
     cls_preds = tf.concat(cls_pred_list, 0)
@@ -81,6 +78,7 @@ if __name__ == "__main__":
     sorted_cls_preds = tf.gather(cls_preds, ind)
     sorted_imgs = tf.gather(selected_x_test, ind)
 
+    # -----------------------------------------------------------------
     # split batches
     cur_cls = sorted_cls_preds[0].numpy()
     start_idx = 0
@@ -88,7 +86,6 @@ if __name__ == "__main__":
     classes = []
     for idx, cls_i in enumerate(sorted_cls_preds):
         if cur_cls != cls_i.numpy():
-            print(start_idx, idx)
             # close this batch
             img_batches.append(sorted_imgs[start_idx:idx])
             classes.append(cur_cls)
@@ -100,12 +97,11 @@ if __name__ == "__main__":
     img_batches.append(sorted_imgs[start_idx:idx])
     classes.append(cls_i.numpy())
     # -----------------------------------------------------------------
+
     cat_ce_fn = tf.keras.losses.CategoricalCrossentropy()
     results = {k: [] for k in range(Config.adv_steps)}
     for batch_img, cls_i in tqdm(zip(img_batches, classes)):
         batch_size = int(batch_img.shape[0])
-        print(batch_img.shape)
-        print(batch_size)
         # loop over different classes for perturb
         for cls_j in range(Config.n_classes):
             if cls_i == cls_j:
@@ -118,7 +114,6 @@ if __name__ == "__main__":
                     s_pred = student(x_adv)
                     t_pred = teacher(x_adv)
                     loss = cat_ce_fn(one_hot, s_pred)
-                    # loss = 0 if i == j
 
                 x_adv -= Config.eta*tape.gradient(loss, x_adv)
                 # save down their predictions
