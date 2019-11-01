@@ -27,7 +27,21 @@ class Config:
     eta = 1.0
     n_classes = 10
 
+def get_arg_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o', '--out', dest='output_csv', type=str, required=True)
+    parser.add_argument('-t', '--teacher', dest='teacher_weight', type=str, required=True,
+                        help='teacher weighting (network B in the paper)')
+    parser.add_argument('-s', '--student', dest='student_weight', type=str, required=True,
+                        help='student weighting (network A in the paper)')
+    parser.add_argument('-m', dest='data_per_class', type=int, default=100)
+    return parser
+
 if __name__ == "__main__":
+    #
+    parser = get_arg_parser()
+    args = parser.parse_args()
+    print(args)
     # data
     (_, _), (x_test, y_test_labels) = get_cifar10_data()
     x_test, y_test_labels = balance_sampling(x_test, y_test_labels, data_per_class=Config.data_per_class)
@@ -38,11 +52,11 @@ if __name__ == "__main__":
 
     # Teacher
     teacher = WideResidualNetwork(40, 2, input_shape=(32, 32, 3))
-    teacher.load_weights('cifar10_WRN-40-2-seed45_model.204.h5')
+    teacher.load_weights(args.teacher_weight)
 
     # Student
     student = WideResidualNetwork(16, 1, input_shape=(32, 32, 3))
-    student.load_weights('cifar10-T40-2-S16-1-seed_45.model.79500.h5')
+    student.load_weights(args.student_weight)
     # student.load_weights('kdat-m200-cifar10_T40-2_S16-1_seed23_model.204.h5')
 
     # make them freeze
@@ -132,8 +146,8 @@ if __name__ == "__main__":
             s_probs.append(s)
             t_probs.append(t)
 
-        s_probs = tf.concat(s_probs, 0) * Config.n_classes / (Config.n_classes-1)
-        t_probs = tf.concat(t_probs, 0) * Config.n_classes / (Config.n_classes-1)
+        s_probs = tf.concat(s_probs, 0)
+        t_probs = tf.concat(t_probs, 0)
 
         mean_s_prob_j[k] = np.mean(s_probs.numpy())
         mean_t_prob_j[k] = np.mean(t_probs.numpy())
@@ -143,5 +157,5 @@ if __name__ == "__main__":
         'student': mean_s_prob_j,
     })
 
-    df.to_csv('results.csv')
+    df.to_csv(args.output_csv)
 
