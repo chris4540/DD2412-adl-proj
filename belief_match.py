@@ -129,7 +129,7 @@ if __name__ == "__main__":
                     t_pred = teacher(x_adv)
                     loss = cat_ce_fn(one_hot, s_pred)
 
-                x_adv -= Config.eta*tape.gradient(loss, x_adv)
+                x_adv -= Config.eta*batch_size*tape.gradient(loss, x_adv)
                 # save down their predictions
                 cls_prob_s = tf.reduce_max(s_pred * one_hot, axis=1)
                 cls_prob_t = tf.reduce_max(t_pred * one_hot, axis=1)
