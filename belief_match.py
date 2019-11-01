@@ -2,6 +2,13 @@
 Refactor from ryan code
 1. Sample only 1000 img for calculation
 2. Use batch
+
+Pros:
+1. faster
+
+Cons:
+1. The max prob. is not 1
+2. Show only the relative different
 """
 import tensorflow as tf
 tf.enable_v2_behavior()
