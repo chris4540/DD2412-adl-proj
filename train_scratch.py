@@ -11,6 +11,7 @@ import numpy as np
 import tensorflow as tf
 from utils.preprocess import get_cifar10_data
 from utils.preprocess import to_categorical
+from utils.preprocess import balance_sampling
 from utils.seed import set_seed
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.optimizers import SGD
@@ -74,7 +75,7 @@ def train(depth, width, seed=42, data_per_class=-1, dataset='cifar10', savedir='
     # make sampling
     if data_per_class > 0:
         # sample
-        x_train_sample, y_train_lbl_sample =
+        x_train_sample, y_train_lbl_sample = \
             balance_sampling(x_train, y_train_lbl, data_per_class=data_per_class)
 
         # repeat the sampled data to be as large as the full data set for convienient
