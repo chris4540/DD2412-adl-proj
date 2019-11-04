@@ -191,10 +191,11 @@ if __name__ == '__main__':
     # try to restart
     is_continue = False   # Flag
     initial_epoch = 0
-    model_name = train_name + "_model.{epoch:03d}.h5"
+    model_name = train_name + "_model.{epoch}.h5"
     model_filepath = os.path.join(savedir, model_name)
     for i in range(Config.epochs, 0, -1):
         fname = model_filepath.format(epoch=i)
+        print(fname)
         if os.path.isfile(fname):
             print("Saved model found")
             print("Using ", fname, " as the save point.")
