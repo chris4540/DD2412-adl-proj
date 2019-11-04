@@ -268,9 +268,6 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth, s_width,
         's_optim': s_optim,
         'g_optim': g_optim,
     }
-    if train_dataflow:
-        chkpt_dict['train_dataflow'] = train_dataflow
-
     # Saving checkpoint
     ckpt = tf.train.Checkpoint(**chkpt_dict)
     ckpt_manager = tf.train.CheckpointManager(ckpt, os.path.join(savedir, 'chpt'), max_to_keep=2)
