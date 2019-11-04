@@ -141,7 +141,7 @@ if __name__ == '__main__':
 
     #
     print('sample_per_class:', args.sample_per_class)
-    
+
     # print beta
     Config.beta = args.beta
     # print out config
@@ -187,14 +187,32 @@ if __name__ == '__main__':
                 classes=Config.classes,
                 input_shape=Config.input_shape,
                 has_softmax=False, output_activations=True, weight_decay=Config.weight_decay)
+    # --------------------------------------------------------------------------
+    # try to restart
+    is_continue = False   # Flag
+    initial_epoch = 0
+    model_name = train_name + "_model.{epoch:03d}.h5"
+    model_filepath = os.path.join(savedir, model_name)
+    for i in range(Config.epochs, 0, -1):
+        fname = model_filepath.format(epoch=i)
+        if os.path.isfile(fname):
+            print("Saved model found")
+            print("Using ", fname, " as the save point.")
+            is_continue = True
+            initial_epoch = i + 1
+            student.load_weights(fname)
+            break
 
+    print("Start epoch = {}".format(initial_epoch))
     # ==========================================================================
     # optimizer, like training from scratch
-    optim = tf.keras.optimizers.SGD(learning_rate=lr_schedule(0),
+    optim = tf.keras.optimizers.SGD(learning_rate=lr_schedule(initial_epoch),
                                     momentum=Config.momentum, nesterov=True)
 
     # logging dict
-    logging = CustomizedCSVLogger(os.path.join(savedir, 'log_{}.csv'.format(train_name)))
+    logging = CustomizedCSVLogger(
+        os.path.join(savedir, 'log_{}.csv'.format(train_name)),
+        append=is_continue)
     # Train student
     loss_metric = tf.keras.metrics.Mean()
 
@@ -205,7 +223,7 @@ if __name__ == '__main__':
 
 
     best_acc = -np.inf
-    for epoch in range(Config.epochs):
+    for epoch in range(initial_epoch, Config.epochs):
         # Iterate over the batches of the dataset.
 
         # start time
@@ -258,10 +276,14 @@ if __name__ == '__main__':
         loss_metric.reset_states()
         # ------------------------------------------------------------------
         def save_model():
+            """
+            Save function helper
+            """
             # save down the model
-            model_wght_file = train_name + "_model.{}.h5".format(epoch)
-            print("Saving file: {} ....".format(model_wght_file))
-            student.save_weights(os.path.join(savedir, model_wght_file))
+            # model_wght_file = train_name + "_model.{}.h5".format(epoch)
+            model_filepath.format(epoch=epoch)
+            print("Saving file: {} ....".format(model_filepath))
+            student.save_weights(model_filepath)
 
         if (test_acc > best_acc) and epoch > 10:
             print("{} is better then {}".format(test_acc, best_acc))
