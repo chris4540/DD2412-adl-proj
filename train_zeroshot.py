@@ -41,11 +41,13 @@ from utils.losses import student_loss_fn
 from utils.losses import generator_loss_fn
 from utils.losses import knowledge_distil_loss_fn
 from utils.preprocess import get_cifar10_data
+from utils.preprocess import to_categorical
 from utils.preprocess import balance_sampling
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import Adam
 from net.wide_resnet import WideResidualNetwork
 from tensorflow.keras.experimental import CosineDecay
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
 
