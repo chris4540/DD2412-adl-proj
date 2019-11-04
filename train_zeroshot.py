@@ -181,6 +181,8 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth, s_width,
     set_seed(seed)
 
     train_name = '%s_T-%d-%d_S-%d-%d_seed_%d' % (dataset, t_depth, t_width, s_depth, s_width, seed)
+    if sample_per_class > 0:
+        train_name += "-m%d" % sample_per_class
     log_filename = train_name + '_training_log.csv'
 
     # save dir
