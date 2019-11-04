@@ -1,3 +1,0 @@
-
-# Tensorflow
-tensorflow==1.15rc2
