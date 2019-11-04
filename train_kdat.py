@@ -281,9 +281,9 @@ if __name__ == '__main__':
             """
             # save down the model
             # model_wght_file = train_name + "_model.{}.h5".format(epoch)
-            model_filepath.format(epoch=epoch)
-            print("Saving file: {} ....".format(model_filepath))
-            student.save_weights(model_filepath)
+            fname = model_filepath.format(epoch=epoch)
+            print("Saving file: {} ....".format(fname))
+            student.save_weights(fname)
 
         if (test_acc > best_acc) and epoch > 10:
             print("{} is better then {}".format(test_acc, best_acc))
