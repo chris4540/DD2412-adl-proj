@@ -41,6 +41,7 @@ from utils.losses import student_loss_fn
 from utils.losses import generator_loss_fn
 from utils.losses import knowledge_distil_loss_fn
 from utils.preprocess import get_cifar10_data
+from utils.preprocess import balance_sampling
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import Adam
 from net.wide_resnet import WideResidualNetwork
@@ -210,6 +211,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth, s_width,
         s_decay_steps = Config.n_outer_loop*Config.n_s_in_loop + Config.n_outer_loop
     else:
         s_decay_steps = Config.n_outer_loop*Config.n_s_in_loop
+
     s_optim = Adam(learning_rate=CosineDecay(
                                 Config.student_init_lr,
                                 decay_steps=s_decay_steps))
@@ -310,7 +312,7 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth, s_width,
         if train_dataflow:
             x_batch_train, y_batch_train = next(train_dataflow)
             t_logits, t_acts = forward(teacher, x_batch_train, training=False)
-            loss = train_student(student, s_optim, x_batch_train, t_logits, t_acts, y_batch_train)
+            loss = train_student_with_labels(student, s_optim, x_batch_train, t_logits, t_acts, y_batch_train)
         # ==========================================================================
 
         # --------------------------------------------------------------------
