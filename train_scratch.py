@@ -11,6 +11,7 @@ import numpy as np
 import tensorflow as tf
 from utils.preprocess import get_cifar10_data
 from utils.preprocess import to_categorical
+from utils.preprocess import balance_sampling
 from utils.seed import set_seed
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.optimizers import SGD
@@ -32,6 +33,7 @@ class Config:
     momentum = 0.9
     weight_decay = 5e-4
     init_lr = 0.1
+    n_data_per_class = 5000
 
 
 
@@ -56,7 +58,7 @@ def mkdir(dirname):
     os.makedirs(save_dir, exist_ok=True)
 
 
-def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models', is_continue=False):
+def train(depth, width, seed=42, data_per_class=-1, dataset='cifar10', savedir='saved_models', is_continue=False):
 
     set_seed(seed)
 
@@ -69,7 +71,17 @@ def train(depth, width, seed=42, dataset='cifar10', savedir='saved_models', is_c
         classes = 10
     else:
         raise NotImplementedError("TODO: SVHN")
+    # ====================================================================
+    # make sampling
+    if data_per_class > 0:
+        # sample
+        x_train_sample, y_train_lbl_sample = \
+            balance_sampling(x_train, y_train_lbl, data_per_class=data_per_class)
 
+        # repeat the sampled data to be as large as the full data set for convienient
+        x_train = np.repeat(x_train_sample, Config.n_data_per_class/data_per_class, axis=0)
+        y_train_lbl = np.repeat(y_train_lbl_sample, Config.n_data_per_class/data_per_class, axis=0)
+    # ====================================================================
     # To one-hot
     y_train = to_categorical(y_train_lbl)
     y_test = to_categorical(y_test_lbl)
@@ -161,6 +173,7 @@ def get_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-w', '--width', type=int, required=True)
     parser.add_argument('-d', '--depth', type=int, required=True)
+    parser.add_argument('-m', '--sample_per_class', type=int, default=-1)
     parser.add_argument('--savedir', type=str, default='savedir')
     parser.add_argument('--dataset', type=str, default='cifar10')
     parser.add_argument('--seed', type=int, default=10)
@@ -171,4 +184,6 @@ def get_arg_parser():
 if __name__ == '__main__':
     parser = get_arg_parser()
     args = parser.parse_args()
-    train(args.depth, args.width, args.seed, savedir=args.savedir, is_continue=args.cont)
+    train(args.depth, args.width, seed=args.seed,
+          data_per_class=args.sample_per_class,
+          savedir=args.savedir, is_continue=args.cont)

@@ -39,6 +39,7 @@ from utils.seed import set_seed
 from net.generator import NavieGenerator
 from utils.losses import student_loss_fn
 from utils.losses import generator_loss_fn
+from utils.losses import knowledge_distil_loss_fn
 from utils.preprocess import get_cifar10_data
 from utils.csvlogger import CustomizedCSVLogger
 from tensorflow.keras.optimizers import Adam
@@ -78,6 +79,9 @@ class Config:
     # init learing rates
     student_init_lr = 2e-3
     generator_init_lr = 1e-3
+    # ---------------------------
+    alpha = 0.9
+    temp = 4.0
 
 
 def logits_to_distribution(logits):
@@ -137,9 +141,39 @@ def prepare_train_student(generator, z_val, teacher):
     t_logits, *t_acts = teacher(pseudo_imgs, training=False)
     return pseudo_imgs, t_logits, t_acts
 
+@tf.function
+def forward(model, batch, training):
+    logits, *acts = model(batch, training=training)
+    return logits, acts
 
-def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
-                   seed=42, savedir=None, dataset='cifar10'):
+@tf.function
+def train_student_with_labels(student, optim, batch, t_logits, t_acts, onehot_label):
+    # Do forwarding, watch trainable varaibles and record auto grad.
+    with tf.GradientTape() as tape:
+        s_logits, *s_acts = student(batch, training=True)
+        # The loss itself
+        loss = knowledge_distil_loss_fn(
+                t_logits=t_logits,
+                t_acts=t_acts,
+                s_logits=s_logits,
+                s_acts=s_acts,
+                onehot_label=onehot_label,
+                alpha=Config.alpha,
+                beta=Config.beta,
+                temp=Config.temp)
+        # -------------------------------------------------
+        # The L2 weighting regularization loss
+        reg_loss = tf.reduce_sum(student.losses)
+
+        # sum them up
+        loss = loss + reg_loss
+    grads = tape.gradient(loss, student.trainable_weights)
+    optim.apply_gradients(zip(grads, student.trainable_weights))
+
+    return loss
+
+def zeroshot_train(t_depth, t_width, t_wght_path, s_depth, s_width,
+                   seed=42, savedir=None, dataset='cifar10', sample_per_class=0):
 
     set_seed(seed)
 
@@ -152,11 +186,10 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
     full_savedir = os.path.join(os.getcwd(), savedir)
     mkdir(full_savedir)
 
-    #model_filepath = os.path.join(save_dir, model_name)
     log_filepath = os.path.join(full_savedir, log_filename)
     logger = CustomizedCSVLogger(log_filepath)
 
-    ## Teacher
+    # Teacher
     teacher = WideResidualNetwork(t_depth, t_width,
                                   input_shape=Config.input_dim,
                                   dropout_rate=0.0,
@@ -166,22 +199,44 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
     teacher.load_weights(t_wght_path)
     teacher.trainable = False
 
-    ## Student
+    # Student
     student = WideResidualNetwork(s_depth, s_width,
                                   input_shape=Config.input_dim,
                                   dropout_rate=0.0,
                                   output_activations=True,
                                   has_softmax=False)
 
+    if sample_per_class > 0:
+        s_decay_steps = Config.n_outer_loop*Config.n_s_in_loop + Config.n_outer_loop
+    else:
+        s_decay_steps = Config.n_outer_loop*Config.n_s_in_loop
     s_optim = Adam(learning_rate=CosineDecay(
                                 Config.student_init_lr,
-                                decay_steps=Config.n_outer_loop*Config.n_s_in_loop))
-    ## Generator
+                                decay_steps=s_decay_steps))
+    # ---------------------------------------------------------------------------
+    # Generator
     generator = NavieGenerator(input_dim=Config.z_dim)
-    ## TODO: double check the annuealing setting
     g_optim = Adam(learning_rate=CosineDecay(
                                 Config.generator_init_lr,
                                 decay_steps=Config.n_outer_loop*Config.n_g_in_loop))
+    # ---------------------------------------------------------------------------
+    # Test data
+    (x_train, y_train_lbl), (x_test, y_test) = get_cifar10_data()
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(200)
+    # ---------------------------------------------------------------------------
+    # Train data (if using train data)
+    train_dataflow = None
+    if sample_per_class > 0:
+        # sample first
+        x_train, y_train_lbl = \
+            balance_sampling(x_train, y_train_lbl, data_per_class=sample_per_class)
+        datagen = ImageDataGenerator(width_shift_range=4, height_shift_range=4,
+                                     horizontal_flip=True, vertical_flip=False,
+                                     rescale=None, fill_mode='reflect')
+        datagen.fit(x_train)
+        y_train = to_categorical(y_train_lbl)
+        train_dataflow = datagen.flow(x_train, y_train, batch_size=Config.batch_size, shuffle=True)
+
 
     # Generator loss metrics
     g_loss_met = tf.keras.metrics.Mean()
@@ -196,10 +251,6 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
     max_g_grad_norm_metric = tf.keras.metrics.Mean()
     max_s_grad_norm_metric = tf.keras.metrics.Mean()
 
-    #Test data
-    (_, _), (x_test, y_test) = get_cifar10_data()
-
-    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(200)
 
     teacher.trainable = False
 
@@ -240,7 +291,6 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
             g_loss_met(loss)
 
         # ==========================================================================
-
         # Student training
         loss = 0
         pseudo_imgs, t_logits, t_acts = prepare_train_student(generator, z_val, teacher)
@@ -255,6 +305,14 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth=16, s_width=1,
             s_loss_met(loss)
             n_cls_t_pred_metric(n_cls_t_pred)
             n_cls_s_pred_metric(n_cls_s_pred)
+        # ==========================================================================
+        # train if provided n samples
+        if train_dataflow:
+            x_batch_train, y_batch_train = next(train_dataflow)
+            t_logits, t_acts = forward(teacher, x_batch_train, training=False)
+            loss = train_student(student, s_optim, x_batch_train, t_logits, t_acts, y_batch_train)
+        # ==========================================================================
+
         # --------------------------------------------------------------------
         iter_etime = time.time()
         max_g_grad_norm_metric(max_g_grad_norm)
@@ -322,10 +380,14 @@ def get_arg_parser():
     parser.add_argument('--savedir', default=None)
     parser.add_argument('--dataset', type=str, default='cifar10')
     parser.add_argument('--seed', type=int, default=10)
+    parser.add_argument('-m', '--sample_per_class', type=int, default=0)
     return parser
 
 
 if __name__ == '__main__':
     parser = get_arg_parser()
     args = parser.parse_args()
-    zeroshot_train(args.tdepth, args.twidth, args.teacher_weights, args.sdepth, args.swidth, args.seed, savedir=args.savedir)
+    zeroshot_train(args.tdepth, args.twidth, args.teacher_weights,
+                   args.sdepth, args.swidth,
+                   seed=args.seed, savedir=args.savedir,
+                   sample_per_class=args.sample_per_class)
