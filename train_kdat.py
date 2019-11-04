@@ -195,7 +195,6 @@ if __name__ == '__main__':
     model_filepath = os.path.join(savedir, model_name)
     for i in range(Config.epochs, 0, -1):
         fname = model_filepath.format(epoch=i)
-        print(fname)
         if os.path.isfile(fname):
             print("Saved model found")
             print("Using ", fname, " as the save point.")
