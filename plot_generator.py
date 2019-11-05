@@ -50,25 +50,29 @@ if __name__ == '__main__':
         "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i400.h5",
         "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i500.h5",
         "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i700.h5",
-        "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i800.h5",
         "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i1000.h5",
         "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i1500.h5",
         "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i2000.h5",
         "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i2500.h5",
         "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i10000.h5",
         "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i15000.h5",
-        "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i18000.h5",
+        "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i20000.h5",
+        "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i50000.h5",
+        "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i70000.h5",
+        "zeroshot_cifar10_T-40-2_S-16-1_seed_45/generator_i79999.h5",
     ]
 
     ncols = len(files)
-    fig, axs = plt.subplots(Config.n_pics, ncols)
+    fig, axs = plt.subplots(Config.n_pics, ncols, figsize=(ncols, Config.n_pics))
+    plt.setp(axs, xticks=[], yticks=[])
+    plt.subplots_adjust(hspace=0.05, wspace=0.05)
     z_val = get_z_val()
 
     for j, file in enumerate(files):
         imgs = generate_pics_from_weight_file(file, z_val)
-        for i in range(5):
+        for i in range(Config.n_pics):
             ax = axs[i, j]
-            ax.imshow(imgs[i, :])
             ax.axis('off')
+            ax.imshow(imgs[i, :], interpolation='nearest')
 
-    plt.savefig("cifar10-color-samples.png")
+    plt.savefig("cifar10-generator-samples.pdf", bbox_inches='tight')
