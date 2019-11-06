@@ -347,7 +347,12 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth, s_width,
             row_dict['n_cls_s_pred_avg'] = n_cls_s_pred_avg
             row_dict['max_g_grad_norm_avg'] = max_g_grad_norm_avg
             row_dict['max_s_grad_norm_avg'] = max_s_grad_norm_avg
-            row_dict['s_optim_lr'] = s_optim.learning_rate(iter_*Config.n_s_in_loop).numpy()
+
+            if sample_per_class > 0:
+                s_optim_iter = iter_ * (Config.n_s_in_loop+1)
+            else:
+                s_optim_iter = iter_ * Config.n_s_in_loop
+            row_dict['s_optim_lr'] = s_optim.learning_rate(s_optim_iter).numpy()
             row_dict['g_optim_lr'] = g_optim.learning_rate(iter_).numpy()
 
             pprint.pprint(row_dict)
