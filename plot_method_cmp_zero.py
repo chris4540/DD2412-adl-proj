@@ -21,9 +21,12 @@ if __name__ == '__main__':
     test_acc_wo_real = test_acc_wo_real.loc[sample_epochs]
 
     df = pd.DataFrame({
-        "With real data": test_acc_with_real,
-        "Without real data": test_acc_wo_real,
+        "With real data (m=100)": test_acc_with_real,
+        "Without real data (m=0)": test_acc_wo_real,
     })
 
     ax = df.plot(kind="line")
-    plt.show()
+    ax.set_ylabel("Test Accuracy")
+    ax.set_xlabel("Epoch")
+    # ax.set_title("CIFAR-10")
+    plt.savefig("cmp_zero_wwo_real_data.pdf", bbox_inches='tight')

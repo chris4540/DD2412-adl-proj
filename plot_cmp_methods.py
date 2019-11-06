@@ -14,7 +14,7 @@ if __name__ == '__main__':
         'Zeroshot(m=100)': "c*-",
     }
     ax = df.plot(kind='line', style=styles)
-    ax.set_ylabel("Accuracy")
+    ax.set_ylabel("Test Accuracy")
     ax.set_xlabel("Number of Images per class (M)")
-    ax.set_title("CIFAR-10")
+    # ax.set_title("CIFAR-10")
     plt.savefig("method_cmp.pdf", bbox_inches='tight')
