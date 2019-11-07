@@ -1,4 +1,4 @@
-# Advance Machine Learning Reproducibility Project
+# Advance Deep Learning Reproducibility Project
 This is the course DD2412 final project aiming for reproduce
 
 ## Reproducibility
