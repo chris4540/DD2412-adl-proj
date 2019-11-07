@@ -41,6 +41,7 @@ from utils.losses import student_loss_fn
 from utils.losses import generator_loss_fn
 from utils.losses import knowledge_distil_loss_fn
 from utils.preprocess import get_cifar10_data
+from utils.preprocess import get_fashion_mnist_data
 from utils.preprocess import to_categorical
 from utils.preprocess import balance_sampling
 from utils.csvlogger import CustomizedCSVLogger
@@ -257,6 +258,15 @@ def zeroshot_train(t_depth, t_width, t_wght_path, s_depth, s_width,
     max_g_grad_norm_metric = tf.keras.metrics.Mean()
     max_s_grad_norm_metric = tf.keras.metrics.Mean()
 
+    #Test data
+    if dataset == 'cifar10':
+        (_, _), (x_test, y_test) = get_cifar10_data()
+    elif dataset == 'fashion_mnist':
+        (_, _), (x_test, y_test) = get_fashion_mnist_data()
+    else:
+        raise NotImplementedError("Only Cifar-10 and Fashion-MNIST supported !!")  
+
+    test_data_loader = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(200)
 
     teacher.trainable = False
 
