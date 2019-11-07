@@ -11,8 +11,6 @@ class CustomizedCSVLogger:
         self.filename = filename
         self.sep = sep
         self.headers = None
-        # self.append = append
-        # self._recs = None
         self._header_written = append
 
 

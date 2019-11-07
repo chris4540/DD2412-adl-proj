@@ -4,7 +4,18 @@ For data preprocessing
 """
 import tensorflow as tf
 import numpy as np
-# import tensorflow.keras as keras
+
+class Cifar10NormalFactors:
+    mean = None
+    std = None
+
+def get_cifar10_mean_std():
+    if Cifar10NormalFactors.mean is None or Cifar10NormalFactors.std is None:
+        get_cifar10_data()
+
+    assert Cifar10NormalFactors.mean is not None
+    assert Cifar10NormalFactors.std is not None
+    return Cifar10NormalFactors.mean, Cifar10NormalFactors.std
 
 def standardize_data(data):
     ret = data.astype('float32') / 255.0
@@ -25,6 +36,10 @@ def get_cifar10_data():
     # normalized with train mean and std
     x_train_mean = x_train.mean(axis=0)
     x_train_std = x_train.std(axis=0)
+
+    # save down for later use
+    Cifar10NormalFactors.mean = x_train_mean
+    Cifar10NormalFactors.std = x_train_std
 
     x_train = (x_train - x_train_mean) / x_train_std
     x_test = (x_test - x_train_mean) / x_train_std
