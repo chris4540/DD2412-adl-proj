@@ -1,32 +1,27 @@
 # Advance Deep Learning Reproducibility Project
-This is the course DD2412 final project aiming for reproduce
+This repo is for the project of the course DD2412 aiming for reproduce the primary result of
+the paper in ***Tensorflow v1.14***:
+
+[Zero-shot Knowledge Transfer via Adversarial Belief Matching](https://arxiv.org/abs/1905.09768)
 
 ## Reproducibility
 
 ### Targets
 - Reimplementation of all methods from scratch and reproducing, empirically
   analyzing, discussing (nearly) all results.
-- Use different model teacher and student pair model to run key results.
-  E.g. VGG-16, VGG-19.
 - [Bonus point] Successful reimplementation in another deep learning framework.
 
 ## Method implemented
-- [x] Reimplement WRN 
-- [ ] Toy model Experiment. (Figure 1)  
-- [x] Zero-shot transfer with adversarial training method  
-- [x] Knowledge distillation and attention transfer (KD only has soft target)  
-- [ ]
-
-## Key results
-- [ ] TODO 
+- [x] Reimplement WRN
+- [ ] Toy model Experiment. (Figure 1)
+- [x] Zero-shot transfer with adversarial training method
+- [x] Knowledge distillation and attention transfer (KD only has soft target)
 
 ## Reproducibility Checklist
 [ReproducibilityChecklist](https://www.cs.mcgill.ca/~jpineau/ReproducibilityChecklist.pdf)
 
-## Report
-Example reports on ReScience
-
-https://rescience.github.io/read/
+## Report template
+[Example reports on ReScience](https://rescience.github.io/read/)
 
 Selected paper:
 [Re h-detach: Modifying the LSTM gradient towards better optimization](https://zenodo.org/record/3162114/files/article.pdf)
@@ -45,23 +40,11 @@ image-project: deeplearning-platform-release
 accelerator: type=nvidia-tesla-p100,count=1
 ```
 ---------------------------------------------------
-## Experiment details
-### Experiment 1
-- Reproduce the result in table 1. 
-- Iterate each step for 3 times with seed
-
-#### Checklist
-1. [ ] Train teacher from scratch
-2. [ ] Train student from scratch
-3. [ ] Samples 200 images per class
-4. [ ] Zero-shot learning
-
-
----------------------------------------------------
 ## Technical details
 ### Software Requirement
-Tensorflow v1.14; Capable to v1.15 or v2.0 but no testing
-Python v3.4 or above
+- Tensorflow v1.14; Capable to v1.15 or v2.0 but did not test
+
+- Python v3.4 or above
 
 ##### Cosine anneualing
 [Small intro on blog](
@@ -84,7 +67,9 @@ https://www.tensorflow.org/guide/keras/custom_layers_and_models
 
 ##### PEP-8: Style Guide for Python Code
 https://www.python.org/dev/peps/pep-0008/
+
 -----------------------------------------------------------------
+
 ## Missing info
 1. batch size
 2. Consine anneuling info
